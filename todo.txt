@@ -1,0 +1,21 @@
+
+Things that I eventually want to build as I learn rust:
+
+1 Handmade Servers - HTTP, FTP, tFTP, SSH, netcat
+2 6502 emulator, assembler, c compiler
+
+3 ML - Pong RL (voice, NLP, CV)
+
+- Gameboy emulator
+- Embedded - quadcopter raspberry pi, general embedded demo/ embedded sensors demo
+
+- very simple kernel like in little OS book
+5 userspace network card PCI driver
+- ext2 file system - written in C or rust
+
+- blockchain - monero + nanocoin + ethereum + builtin exchanges/exchange rate / inflation rate
+- blockchain example in rust demo
+- SDR demo
+4 embedded KV DB in rust
+
+- verilog model of 6502
