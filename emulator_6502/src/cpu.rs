@@ -4,7 +4,9 @@ use mmu::MMU;
 use registers::Registers;
 
 
-struct CPU {
+struct CPU <'a> {
+
+    // a: &'a usize,
 
     /// The MMU, modeled here as "owned" by the CPU
     mmu: MMU,
@@ -25,7 +27,7 @@ struct CPU {
     // TODO: might want to make this be a stand alone object that is passed to the 
     // step method. That way, CPU could derive Debug and other things that would
     // be convenient to derive. Also that would make the lifetime issue easier...
-    // ops: Vec<&'a Fn(&mut CPU)>,
+    ops: [fn(&mut CPU<'a>, u16); 256],
 
     stack_page: usize,
     magic: u8,
@@ -33,10 +35,27 @@ struct CPU {
     interrupts: HashMap<String, usize>,
 }
 
-impl CPU {
+impl <'a> CPU <'a> {
+
+    // implement ops
+    fn op_not_implemented(&mut self, src: u16) {
+        panic!("Error, this op is not implemented.")
+    }
+
+    // add memory to accumulator with carry
+    fn op_adc(&mut self, src: u16) {
+        panic!("Error, this op is not implemented.")
+    }
+
+    // and
+    fn op_and(&mut self, src: u16) {
+        self.r.a = (self.r.a & (src as u8)) & 0xFF;
+        let flag = self.r.a;
+        self.r.zn(flag);
+    }
 
     /// initialize the CPU and return it
-    fn new(mmu: MMU) -> CPU {
+    fn new(mmu: MMU) -> CPU<'a> {
 
         // I believe that these are the hard coded locations in memory that represent the
         // interrupt pins/buses.
@@ -48,15 +67,13 @@ impl CPU {
         interrupts.insert("NMI".to_string(), 0xFFFa);
         interrupts.insert("RESET".to_string(), 0xFFFc);
 
-        // fn not_implemented_op(cpu: &mut CPU) {
-        //     panic!("Error, this op is not implemented.")
-        // }
+
 
         CPU {
             mmu: mmu,
             r: Registers::new(),
             cc: 0,
-            // ops: vec![&not_implemented_op; 256],
+            ops: [CPU::op_not_implemented; 256],
 
             stack_page: 0x1,
             magic: 0xEE,
@@ -134,11 +151,11 @@ impl CPU {
     }
 
     fn zx_a(&mut self) -> u16 {
-        ((self.next_byte() as u16) + self.r.x) & 0xFF
+        ((self.next_byte() + self.r.x) & 0xFF) as u16
     }
 
     fn zy_a(&mut self) -> u16 {
-        ((self.next_byte() as u16) + self.r.y) & 0xFF
+        ((self.next_byte() + self.r.y) & 0xFF) as u16
     }
 
     // absolute addressing
@@ -148,7 +165,7 @@ impl CPU {
 
     fn ax_a(&mut self) -> u16 {
         let op = self.next_word();
-        let a = op + self.r.x;
+        let a = op + (self.r.x as u16);
 
         if op / 0xFF != a / 0xFF {
             self.cc += 1;
@@ -159,7 +176,7 @@ impl CPU {
 
     fn ay_a(&mut self) -> u16 {
         let op = self.next_word();
-        let a = op + self.r.y;
+        let a = op + (self.r.y as u16);
 
         if op / 0xFF != a / 0xFF {
             self.cc += 1;
@@ -186,7 +203,7 @@ impl CPU {
 
 
     fn ix_a(&mut self) -> u16 {
-        let i = ((self.next_byte() as u16) + self.r.x) & 0xFF;
+        let i = (self.next_byte() + self.r.x) & 0xFF;
         let u = self.mmu.read(((i + 1) & 0xff) as usize);
         let l = self.mmu.read(i as usize);
         (((u as u16) << 8) + l as u16) & 0xffff
@@ -194,10 +211,10 @@ impl CPU {
 
     fn iy_a(&mut self) -> u16 {
         let i = self.next_byte();
-        let u = self.mmu.read((i as usize + 1) & 0xFF) as u16;
-        let l = self.mmu.read(i as usize) as u16;
-        let o = (u << 8) + l;
-        let a = o + self.r.y;
+        let u = self.mmu.read((i as usize + 1) & 0xFF);
+        let l = self.mmu.read(i as usize);
+        let o = ((u as u16) << 8) + (l as u16);
+        let a = o + (self.r.y as u16);
 
         if o / 0xFF != a / 0xFF {
             self.cc += 1;
@@ -272,8 +289,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_ops() {
+    fn test_construct_cpu() {
         let mmu = MMU::new(&Vec::new());
         let cpu = CPU::new(mmu);
+    }
+
+    // test all ops
+    #[test]
+    fn test_op_not_implemented() {
+
+    }
+
+    #[test]
+    fn test_adc() {
+
+    }
+
+        #[test]
+    fn test_and() {
+
     }
 }

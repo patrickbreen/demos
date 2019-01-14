@@ -11,15 +11,15 @@ use std::collections::HashMap;
 #[derive(Debug)]
 pub struct Registers {
     /// The accumulator
-    pub a: u16,
+    pub a: u8,
 
     /// A general purpose register
-    pub x: u16,
+    pub x: u8,
 
     /// A general purpose register
-    pub y: u16,
+    pub y: u8,
 
-    /// The stack pointer
+    /// The stack pointer (this only uses 9 bits)
     pub s: u16,
 
     /// The program counter
@@ -69,7 +69,7 @@ impl Registers {
         self.p = 0;
     }
 
-    fn zn(&mut self, value: u8) {
+    pub fn zn(&mut self, value: u8) {
         self.set_flag('Z', value == 0);
         self.set_flag('N', (value & 0x80) != 0);
     }    
