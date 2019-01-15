@@ -20,19 +20,17 @@ impl Block {
     /// The constructor allocates and initializes an empy block of the given specifications.
     /// If you want to use an existing block. IE for loading a ROM, then that can be optionally
     /// supplied, and it will be checked for proper sizing.
-    fn new(start: usize, length: usize, readonly: bool, memory: Option<Vec<u8>>) -> Block {
+    pub fn new(start: usize, length: usize, readonly: bool, memory: Option<Vec<u8>>) -> Block {
 
         if length == 0 {
             panic!("Error, tried to initialize illegal memory block.");
         }
         // check memory is exists and/or is right size
-        let new_memory = match memory {
-            Some(existing_memory) => {
-                if existing_memory.len() != length {
-                    panic!("Error, tried to initialize illegal memory block.");
-                } else {
-                    existing_memory
-                }
+        let new_memory: Vec<u8> = match memory {
+            Some(mut existing_memory) => {
+                let existing_len = existing_memory.len();
+                existing_memory.append(&mut vec![0; (length - existing_len)]);
+                existing_memory
             },
             None => {
                 vec![0; length]
@@ -91,7 +89,7 @@ impl MMU {
 
     }
 
-    fn add_block(&mut self, new_block: &Block) {
+    pub fn add_block(&mut self, new_block: &Block) {
 
         // check if new block overlaps with existing blocks
         for block in &self.blocks {
@@ -150,7 +148,6 @@ impl MMU {
         ((self.read(addr+1) as u16) << 8) + (self.read(addr) as u16)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

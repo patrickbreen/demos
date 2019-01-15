@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use mmu::MMU;
+use mmu::{MMU, Block};
 use registers::Registers;
 
 
@@ -80,6 +80,8 @@ impl <'a> CPU <'a> {
             running: true,
             interrupts: interrupts,
         }
+
+        // TODO: set up op table
     }
 
     // 1) read a byte (opcode)
@@ -283,6 +285,21 @@ impl <'a> CPU <'a> {
     }
 }
 
+// Construct a simple cpu with the given bytes in ROM and
+// set the pc to point to the first byte in ROM.
+fn make_cpu(rom_init: Vec<u8>) -> CPU <'static> {
+        let mut mmu = MMU::new(&Vec::new());
+        // RAM
+        mmu.add_block(&Block::new(0, 0x200, false, None));
+        // ROM
+        mmu.add_block(&Block::new(0x1000, 0x100, true, Some(rom_init)));
+
+        let mut cpu = CPU::new(mmu);
+        cpu.r.pc = 0x1000;
+        cpu
+}
+
+
 #[cfg(test)]
 mod tests {
     // import parent scope
@@ -294,19 +311,47 @@ mod tests {
         let cpu = CPU::new(mmu);
     }
 
-    // test all ops
+    // ----- test cpu methods -----
+
+    // ----- test addressing modes -----
+
+    // ----- test all ops -----
     #[test]
+    #[should_panic]
     fn test_op_not_implemented() {
-
+        let mmu = MMU::new(&Vec::new());
+        let mut cpu = CPU::new(mmu);
+        let op = cpu.ops[0x69];
+        op(&mut cpu, 0);
+        assert_eq!(cpu.r.a, 0);
     }
+
+    // #[test]
+    // fn test_adc() {
+    //     // set up MMU and CPU
+    //     let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
+    //     // let op = cpu.ops[0x69];
+    //     // op(&mut cpu, 0);
+    //     // assert_eq!(cpu.r.a, 1);
+    // }
+
+    // #[test]
+    // fn test_adc_decimal() {
+    //     // set up MMU and CPU
+    //     let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
+    //     // let op = cpu.ops[0x69];
+    //     // op(&mut cpu, 0);
+    //     // assert_eq!(cpu.r.a, 1);
+    // }
 
     #[test]
-    fn test_adc() {
-
-    }
-
-        #[test]
     fn test_and() {
+        let mut cpu = make_cpu(vec![0xFF, 0xFF, 0x01, 0x2]);
 
+        cpu.r.a = 0x00;
+        let op = cpu.ops[0x29];
+        op(&mut cpu, 0);
+        assert_eq!(cpu.r.a, 0)
     }
+
 }
