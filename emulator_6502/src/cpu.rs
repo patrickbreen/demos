@@ -30,6 +30,7 @@ impl <'a> CPU <'a> {
     }
 
     // add memory to accumulator with carry
+    // if 8 bit addition was all you had!!!!
     fn op_adc(&mut self, src: u8) {
         panic!("Error, this op is not implemented.")
     }
@@ -53,9 +54,10 @@ impl <'a> CPU <'a> {
         // TODO: set up op table
     }
 
-    // 1) read a byte (opcode)
+    // 1) read a byte (instruction)
     // 2) decode using optable to give op function
-    // 3) execute op
+    // 3) get argument using addressing mode if applicable
+    // 4) execute op
     fn step(&self) {
 
     }
@@ -76,12 +78,18 @@ impl <'a> CPU <'a> {
 
     fn stack_push(&mut self, val: u8) {
         self.mmu.write(self.r.stack_page*0x100 + self.r.s as usize, val);
-        self.r.s = (self.r.s - 1) & 0xFF;
+
+        // Note: rust will panic instead of wrapping (to safe for school)
+        if self.r.s == 0 {
+            self.r.s = 255;
+        } else {
+            self.r.s = (self.r.s - 1) & 0xFF;
+        }
     }
 
-    fn stack_push_word(&mut self, val: u8) {
-        self.stack_push(val >> 8);
-        self.stack_push(val & 0xFF);
+    fn stack_push_word(&mut self, val: u16) {
+        self.stack_push((val >> 8) as u8);
+        self.stack_push((val & 0xFF) as u8);
     }
 
     fn stack_pop(&mut self) -> u8 {
@@ -91,7 +99,7 @@ impl <'a> CPU <'a> {
     }
 
     fn stack_pop_word(&mut self) -> u16 {
-        (self.stack_pop() as u16) + ((self.stack_pop() << 8) as u16)
+        (self.stack_pop() as u16) + ((self.stack_pop() as u16) << 8)
     }
 
     fn from_bcd(&self, val: u16) -> u16 {
@@ -102,8 +110,8 @@ impl <'a> CPU <'a> {
         val / 10 * 16 + (val % 10)
     }
 
-    fn from_twos_com(&self, val: u16) -> u16 {
-        (val & 0x7F) - (val & 0x80)
+    fn from_twos_com(&self, val: u16) -> i8 {
+        (((val as i16) & 0x7F) - ((val as i16) & 0x80)) as i8
     }
 
     fn interrupt_address(&mut self, interrupt: String) -> u16 {
@@ -290,12 +298,71 @@ mod tests {
 
     // ----- test cpu methods -----
 
-    // test_toBCD
-    // test_fromBCD
-    // test_fromTwosCom
-    // test next byte
-    // test next word
-    // test stack push/pop
+    #[test]
+    fn test_to_bcd() {
+        let mut cpu = make_cpu(vec![]);
+
+        assert_eq!(cpu.to_bcd(0), 0);
+        assert_eq!(cpu.to_bcd(5), 0x05);
+        assert_eq!(cpu.to_bcd(11), 0x11);
+        assert_eq!(cpu.to_bcd(99), 0x99);
+    }
+
+    #[test]
+    fn test_from_bcd() {
+        let mut cpu = make_cpu(vec![]);
+
+        assert_eq!(cpu.from_bcd(0), 0);
+        assert_eq!(cpu.from_bcd(0x05), 5);
+        assert_eq!(cpu.from_bcd(0x11), 11);
+        assert_eq!(cpu.from_bcd(0x99), 99);
+    }
+
+    #[test]
+    fn test_from_twos_com() {
+        let mut cpu = make_cpu(vec![]);
+
+        assert_eq!(cpu.from_twos_com(0x00), 0);
+        assert_eq!(cpu.from_twos_com(0x01), 1);
+        assert_eq!(cpu.from_twos_com(0x7F), 127);
+        assert_eq!(cpu.from_twos_com(0xFF), -1);
+        assert_eq!(cpu.from_twos_com(0x80), -128);
+    }
+
+    #[test]
+    fn test_next_byte() {
+        let mut cpu = make_cpu(vec![1, 2, 3]);
+
+        assert_eq!(cpu.next_byte(), 1);
+        assert_eq!(cpu.next_byte(), 2);
+        assert_eq!(cpu.next_byte(), 3);
+        assert_eq!(cpu.next_byte(), 0);
+    }
+
+    #[test]
+    fn test_next_word() {
+        let mut cpu = make_cpu(vec![1, 2, 3, 4, 5, 9, 10]);
+
+        assert_eq!(cpu.next_word(), 0x0201);
+        cpu.next_byte();
+        assert_eq!(cpu.next_word(), 0x0504);
+        assert_eq!(cpu.next_word(), 0x0A09);
+    }
+
+    #[test]
+    fn test_stack() {
+        let mut cpu = make_cpu(vec![]);
+
+        cpu.stack_push(0x10);
+        assert_eq!(cpu.stack_pop(), 0x10);
+        cpu.stack_push_word(0x0510);
+        assert_eq!(cpu.stack_pop_word(), 0x0510);
+        assert_eq!(cpu.stack_pop(), 0x00);
+        cpu.stack_push(0x00);
+        cpu.stack_push_word(0x0510);
+        assert_eq!(cpu.stack_pop(), 0x10);
+        assert_eq!(cpu.stack_pop(), 0x05);
+    }
 
     // ----- test addressing modes -----
 
@@ -372,6 +439,8 @@ mod tests {
     }
 
     // ----- test all ops -----
+    // there are 56 of these, plus a couple extras
+
     #[test]
     #[should_panic]
     fn test_op_not_implemented() {
