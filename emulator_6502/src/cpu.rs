@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use mmu::{MMU, Block};
 use registers::Registers;
 
-
 struct CPU <'a> {
-
-    // a: &'a usize,
 
     /// The MMU, modeled here as "owned" by the CPU
     mmu: MMU,
@@ -14,41 +11,31 @@ struct CPU <'a> {
     /// The registers of the CPU
     r: Registers,
 
-    /// The cycle count
-    cc: u32,
-
     // ops is a table of functions with offsets in the table given by an opcode (u8)
     // the values in the op table are functions that borrow a CPU and no return
     // value. The borrowed references to the ops have the same lifetime as the CPU
 
-    // opcode: u8 -> func(&mut CPU)
+    // opcode: u8 -> func(&mut CPU, u8)
 
-    // this is usually called a jump table
-    // TODO: might want to make this be a stand alone object that is passed to the 
-    // step method. That way, CPU could derive Debug and other things that would
-    // be convenient to derive. Also that would make the lifetime issue easier...
-    ops: [fn(&mut CPU<'a>, u16); 256],
+    // this is often called a jump table (though it isn't used much in high level code)
 
-    stack_page: usize,
-    magic: u8,
-    running: bool,
-    interrupts: HashMap<String, usize>,
+    ops: [fn(&mut CPU<'a>, u8); 256],
 }
 
 impl <'a> CPU <'a> {
 
     // implement ops
-    fn op_not_implemented(&mut self, src: u16) {
+    fn op_not_implemented(&mut self, src: u8) {
         panic!("Error, this op is not implemented.")
     }
 
     // add memory to accumulator with carry
-    fn op_adc(&mut self, src: u16) {
+    fn op_adc(&mut self, src: u8) {
         panic!("Error, this op is not implemented.")
     }
 
     // and
-    fn op_and(&mut self, src: u16) {
+    fn op_and(&mut self, src: u8) {
         self.r.a = (self.r.a & (src as u8)) & 0xFF;
         let flag = self.r.a;
         self.r.zn(flag);
@@ -57,28 +44,10 @@ impl <'a> CPU <'a> {
     /// initialize the CPU and return it
     fn new(mmu: MMU) -> CPU<'a> {
 
-        // I believe that these are the hard coded locations in memory that represent the
-        // interrupt pins/buses.
-        let mut interrupts: HashMap<String, usize> = HashMap::new();
-        interrupts.insert("ABORT".to_string(), 0xFFF8);
-        interrupts.insert("COP".to_string(), 0xFFF4);
-        interrupts.insert("IRQ".to_string(), 0xFFFe);
-        interrupts.insert("BRK".to_string(), 0xFFFe);
-        interrupts.insert("NMI".to_string(), 0xFFFa);
-        interrupts.insert("RESET".to_string(), 0xFFFc);
-
-
-
         CPU {
             mmu: mmu,
             r: Registers::new(),
-            cc: 0,
             ops: [CPU::op_not_implemented; 256],
-
-            stack_page: 0x1,
-            magic: 0xEE,
-            running: true,
-            interrupts: interrupts,
         }
 
         // TODO: set up op table
@@ -106,7 +75,7 @@ impl <'a> CPU <'a> {
     }
 
     fn stack_push(&mut self, val: u8) {
-        self.mmu.write(self.stack_page*0x100 + self.r.s as usize, val);
+        self.mmu.write(self.r.stack_page*0x100 + self.r.s as usize, val);
         self.r.s = (self.r.s - 1) & 0xFF;
     }
 
@@ -116,7 +85,7 @@ impl <'a> CPU <'a> {
     }
 
     fn stack_pop(&mut self) -> u8 {
-        let val = self.mmu.read(self.stack_page*0x100 + ((self.r.s as usize + 1) & 0xFF));
+        let val = self.mmu.read(self.r.stack_page*0x100 + ((self.r.s as usize + 1) & 0xFF));
         self.r.s = (self.r.s + 1) & 0xFF;
         val
     }
@@ -138,7 +107,7 @@ impl <'a> CPU <'a> {
     }
 
     fn interrupt_address(&mut self, interrupt: String) -> u16 {
-        self.mmu.read_word(self.interrupts[&interrupt])
+        self.mmu.read_word(self.r.interrupts[&interrupt])
     }
 
     // ---- addressing modes ----
@@ -170,7 +139,7 @@ impl <'a> CPU <'a> {
         let a = op + (self.r.x as u16);
 
         if op / 0xFF != a / 0xFF {
-            self.cc += 1;
+            self.r.cc += 1;
         }
 
         a & 0xFFFF
@@ -181,7 +150,7 @@ impl <'a> CPU <'a> {
         let a = op + (self.r.y as u16);
 
         if op / 0xFF != a / 0xFF {
-            self.cc += 1;
+            self.r.cc += 1;
         }
 
         a & 0xFFFF
@@ -219,9 +188,8 @@ impl <'a> CPU <'a> {
         let a = o + (self.r.y as u16);
 
         if o / 0xFF != a / 0xFF {
-            self.cc += 1;
+            self.r.cc += 1;
         }
-
 
         a & 0xFFFF
         }
@@ -232,11 +200,15 @@ impl <'a> CPU <'a> {
     // memory fetchs all return u8's and hence the 6502 is considered to be an 8bit processor...
 
     // immediate
+    // the byte directly following the instruction IS the argument
     fn im(&mut self) -> u8 {
         self.next_byte()
     }
 
     // zero page addressing
+    // Note this was historically used as a way to access "faster memory" on this processor.
+    // The divergence of speed between registers, caches, and memory on faster processors
+    // led to the loss of usefulness of zero page addressing.
     fn z(&mut self) -> u8 {
         let addr = self.z_a();
         self.mmu.read(addr as usize)
@@ -253,6 +225,7 @@ impl <'a> CPU <'a> {
     }
 
     // absolute addressing
+    // The full memory location (16 bits) is used as an address to the argument byte.
     fn a(&mut self) -> u8 {
         let addr = self.a_a();
         self.mmu.read(addr as usize)
@@ -269,6 +242,8 @@ impl <'a> CPU <'a> {
     }
 
     // indirect addressing
+    // The full memory location (16 bits) is used as an address to the address (16 bits),
+    // which contains the location of the argument byte.
     fn i(&mut self) -> u8 {
         let addr = self.i_a();
         self.mmu.read(addr as usize)
@@ -287,6 +262,8 @@ impl <'a> CPU <'a> {
 
 // Construct a simple cpu with the given bytes in ROM and
 // set the pc to point to the first byte in ROM.
+// TODO: expand to allow video RAM, and static program RAM, and static program ROM 
+// (static data).
 fn make_cpu(rom_init: Vec<u8>) -> CPU <'static> {
         let mut mmu = MMU::new(&Vec::new());
         // RAM
@@ -313,7 +290,86 @@ mod tests {
 
     // ----- test cpu methods -----
 
+    // test_toBCD
+    // test_fromBCD
+    // test_fromTwosCom
+    // test next byte
+    // test next word
+    // test stack push/pop
+
     // ----- test addressing modes -----
+
+
+    #[test]
+    fn test_zeropage_addressing() {
+        // set up MMU and CPU
+        let mut cpu = make_cpu(vec![1, 2, 3, 4, 5]);
+        assert_eq!(cpu.z_a(), 1);
+
+        cpu.r.x = 0;
+        assert_eq!(cpu.zx_a(), 2);
+        cpu.r.x = 1;
+        assert_eq!(cpu.zx_a(), 4);
+
+        cpu.r.y = 0;
+        assert_eq!(cpu.zy_a(), 4);
+        cpu.r.y = 1;
+        assert_eq!(cpu.zy_a(), 6);
+    }
+
+    #[test]
+    fn test_absolute_addressing() {
+        // set up MMU and CPU
+        let mut cpu = make_cpu(
+            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        );
+        assert_eq!(cpu.a_a(), 0x0201);
+
+        cpu.r.x = 0;
+        cpu.r.cc = 0;
+        assert_eq!(cpu.ax_a(), 0x0403);
+        assert_eq!(cpu.r.cc, 0);
+        cpu.r.x = 0xFF;
+        cpu.r.cc = 0;
+        assert_eq!(cpu.ax_a(), 0x0605+0xFF);
+        assert_eq!(cpu.r.cc, 1);
+
+        cpu.r.y = 0;
+        cpu.r.cc = 0;
+        assert_eq!(cpu.ay_a(), 0x0807);
+        assert_eq!(cpu.r.cc, 0);
+        cpu.r.y = 0xFF;
+        cpu.r.cc = 0;
+        assert_eq!(cpu.ay_a(), 0x0a09+0xFF);
+        assert_eq!(cpu.r.cc, 1);
+
+    }
+
+    #[test]
+    fn test_indirect_addressing() {
+        // set up MMU and CPU
+        let mut cpu = make_cpu(
+            vec![
+                0x06, 0x10,
+                0xFF, 0x10,
+                0x00, 0x00,
+                0xF0, 0x00,
+            ]
+        );
+
+        assert_eq!(cpu.i_a(), 0x00F0);
+        assert_eq!(cpu.i_a(), 0x0600);
+
+        cpu.r.y = 0x05;
+        cpu.mmu.write(0x00, 0x21);
+        cpu.mmu.write(0x01, 0x43);
+        assert_eq!(cpu.iy_a(), 0x4326);
+
+        cpu.r.x = 0x02;
+        cpu.mmu.write(0x02, 0x34);
+        cpu.mmu.write(0x03, 0x12);
+        assert_eq!(cpu.ix_a(), 0x1234);
+    }
 
     // ----- test all ops -----
     #[test]
@@ -344,14 +400,20 @@ mod tests {
     //     // assert_eq!(cpu.r.a, 1);
     // }
 
-    #[test]
-    fn test_and() {
-        let mut cpu = make_cpu(vec![0xFF, 0xFF, 0x01, 0x2]);
+    // #[test]
+    // fn test_and() {
+    //     let mut cpu = make_cpu(vec![0xFF, 0xFF, 0x01, 0x2]);
 
-        cpu.r.a = 0x00;
-        let op = cpu.ops[0x29];
-        op(&mut cpu, 0);
-        assert_eq!(cpu.r.a, 0)
-    }
+    //     cpu.r.a = 0x00;
+    //     let op = cpu.ops[0x29];
+    //     op(&mut cpu, 0);
+    //     assert_eq!(cpu.r.a, 0)
+    // }
+
+    // ----- comprehensive tests -----
+
+    // test step
+
+    // test ROM
 
 }

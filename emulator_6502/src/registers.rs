@@ -30,6 +30,14 @@ pub struct Registers {
 
     /// An internal conversion of the flag field label and the flag mask
     fm: HashMap<char, u8>,
+
+    pub stack_page: usize,
+    pub magic: u8,
+    pub running: bool,
+    pub interrupts: HashMap<String, usize>,
+
+    /// The cycle count
+    pub cc: u32,
 }
 
 impl Registers {
@@ -44,8 +52,30 @@ impl Registers {
         map.insert('I', 4);
         map.insert('Z', 2);
         map.insert('C', 1);
+
+        // I believe that these are the hard coded locations in memory that represent the
+        // interrupt pins/buses.
+        let mut interrupts: HashMap<String, usize> = HashMap::new();
+        interrupts.insert("ABORT".to_string(), 0xFFF8);
+        interrupts.insert("COP".to_string(), 0xFFF4);
+        interrupts.insert("IRQ".to_string(), 0xFFFe);
+        interrupts.insert("BRK".to_string(), 0xFFFe);
+        interrupts.insert("NMI".to_string(), 0xFFFa);
+        interrupts.insert("RESET".to_string(), 0xFFFc);
+
         Registers {
-            a: 0, x: 0, y: 0, s: 0xFF, pc: 0, fm: map, p: 0b00100100,
+            a: 0,
+            x: 0,
+            y: 0,
+            s: 0xFF,
+            pc: 0,
+            fm: map,
+            p: 0b00100100,
+            stack_page: 0x1,
+            magic: 0xEE,
+            running: true,
+            interrupts: interrupts,
+            cc: 0,
         }
     }
 
