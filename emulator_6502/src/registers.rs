@@ -79,11 +79,11 @@ impl Registers {
         }
     }
 
-    fn get_flag(&self, flag: char) -> bool {
+    pub fn get_flag(&self, flag: char) -> bool {
         (self.p & self.fm.get(&flag).unwrap()) != 0
     }
 
-    fn set_flag(&mut self, flag: char, value: bool) {
+    pub fn set_flag(&mut self, flag: char, value: bool) {
         if value {
             self.p = self.p | self.fm.get(&flag).unwrap();
         } else {
@@ -91,11 +91,11 @@ impl Registers {
         }
     }
 
-    fn clear_flag(&mut self, flag: char) {
+    pub fn clear_flag(&mut self, flag: char) {
         self.p = self.p & (255 - self.fm.get(&flag).unwrap());
     }
 
-    fn clear_flags(&mut self) {
+    pub fn clear_flags(&mut self) {
         self.p = 0;
     }
 

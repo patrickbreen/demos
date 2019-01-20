@@ -48,9 +48,26 @@ impl CPU {
     }
 
     // add memory to accumulator with carry
-    // if 8 bit addition was all you had!!!!
     fn op_adc(&mut self, src: u16) {
-        panic!("Error, this op is not implemented.")
+
+        let v1 = self.r.a as u16;
+        let mut r = 0;
+        
+        if self.r.get_flag('D') {
+            let d1 = self.from_bcd(v1 as u16);
+            let d2 = self.from_bcd(src);
+            r = d1 + d2 + (self.r.get_flag('C') as u16);
+            self.r.a = self.to_bcd((r % 100) as u16) as u8;
+            self.r.set_flag('C', r > 99);
+        } else {
+            r = v1 + src + (self.r.get_flag('C') as u16);
+            self.r.a = (r & 0xFF) as u8;
+
+            self.r.set_flag('C', r > 0xFF);
+        }
+        let a = self.r.a;
+        self.r.zn(a);
+        self.r.set_flag('V', ((!(v1 ^ src)) & (v1 ^ r) & 0x80) != 0)
     }
 
     // and
@@ -69,12 +86,18 @@ impl CPU {
             ops: [Instr::new(CPU::im, CPU::op_not_implemented); 256],
         };
 
-        // TODO: set up op table
-        // cpu.ops[0x69] = Instr::new(CPU::im, CPU::op_adc);
-        // cpu.ops[0x65] = Instr::new(CPU::z, CPU::op_adc);
-        // cpu.ops[0x75] = Instr::new(CPU::zx, CPU::op_adc);
-        // cpu.ops[0x75] = Instr::new(CPU::zx, CPU::op_adc);
+        // set up op table
+        // adc
+        cpu.ops[0x69] = Instr::new(CPU::im, CPU::op_adc);
+        cpu.ops[0x65] = Instr::new(CPU::z, CPU::op_adc);
+        cpu.ops[0x75] = Instr::new(CPU::zx, CPU::op_adc);
+        cpu.ops[0x6D] = Instr::new(CPU::a, CPU::op_adc);
+        cpu.ops[0x7D] = Instr::new(CPU::ax, CPU::op_adc);
+        cpu.ops[0x79] = Instr::new(CPU::ay, CPU::op_adc);
+        cpu.ops[0x61] = Instr::new(CPU::ix, CPU::op_adc);
+        cpu.ops[0x71] = Instr::new(CPU::iy, CPU::op_adc);
 
+        // and
         cpu.ops[0x29] = Instr::new(CPU::im, CPU::op_and);
         cpu.ops[0x25] = Instr::new(CPU::z, CPU::op_and);
         cpu.ops[0x35] = Instr::new(CPU::zx, CPU::op_and);
@@ -251,54 +274,54 @@ impl CPU {
     // Note this was historically used as a way to access "faster memory" on this processor.
     // The divergence of speed between registers, caches, and memory on faster processors
     // led to the loss of usefulness of zero page addressing.
-    fn z(&mut self) -> u8 {
+    fn z(&mut self) -> u16 {
         let addr = self.z_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn zx(&mut self) -> u8 {
+    fn zx(&mut self) -> u16 {
         let addr = self.zx_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn zy(&mut self) -> u8 {
+    fn zy(&mut self) -> u16 {
         let addr = self.zy_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
     // absolute addressing
     // The full memory location (16 bits) is used as an address to the argument byte.
-    fn a(&mut self) -> u8 {
+    fn a(&mut self) -> u16 {
         let addr = self.a_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn ax(&mut self) -> u8 {
+    fn ax(&mut self) -> u16 {
         let addr = self.ax_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn ay(&mut self) -> u8 {
+    fn ay(&mut self) -> u16 {
         let addr = self.ay_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
     // indirect addressing
     // The full memory location (16 bits) is used as an address to the address (16 bits),
     // which contains the location of the argument byte.
-    fn i(&mut self) -> u8 {
+    fn i(&mut self) -> u16 {
         let addr = self.i_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn ix(&mut self) -> u8 {
+    fn ix(&mut self) -> u16 {
         let addr = self.ix_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 
-    fn iy(&mut self) -> u8 {
+    fn iy(&mut self) -> u16 {
         let addr = self.iy_a();
-        self.mmu.read(addr as usize)
+        self.mmu.read(addr as usize) as u16
     }
 }
 
@@ -485,23 +508,54 @@ mod tests {
     //     assert_eq!(cpu.r.a, 0);
     // }
 
-    // #[test]
-    // fn test_adc() {
-    //     // set up MMU and CPU
-    //     let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
-    //     let code = cpu.ops[0x69].code;
-    //     code(&mut cpu, 0);
-    //     assert_eq!(cpu.r.a, 1);
-    // }
+    #[test]
+    fn test_adc() {
+        let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 1);
 
-    // #[test]
-    // fn test_adc_decimal() {
-    //     // set up MMU and CPU
-    //     let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
-    //     // let op = cpu.ops[0x69];
-    //     // op(&mut cpu, 0);
-    //     // assert_eq!(cpu.r.a, 1);
-    // }
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 3);
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 253);
+        assert!(cpu.r.get_flag('N'));
+        cpu.r.clear_flags();
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert!(cpu.r.get_flag('C'));
+        assert!(cpu.r.get_flag('Z'));
+        cpu.r.clear_flags();
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert!(cpu.r.get_flag('V'));
+    }
+
+    #[test]
+    fn test_adc_decimal() {
+        let mut cpu = make_cpu(vec![0x01, 0x55, 0x50]);
+        cpu.r.set_flag('D', true);
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x01);
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x56);
+
+        let src = (cpu.ops[0x69].addr)(&mut cpu);
+        (cpu.ops[0x69].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x06);
+        assert!(cpu.r.get_flag('C'));
+    }
 
     #[test]
     fn test_and() {
