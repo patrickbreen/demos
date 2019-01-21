@@ -166,6 +166,19 @@ impl CPU {
         self.r.set_flag('V', src & 0x40 != 0);
     }
 
+    // brk
+    fn op_brk(&mut self, src: u16) {
+        self.r.set_flag('B', true);
+
+        let pc = self.r.pc;
+        self.stack_push_word(pc);
+        
+        let p = self.r.p;
+        self.stack_push(p);
+        self.r.set_flag('I', true);
+        self.r.pc = self.interrupt_address("BRK".to_string());
+    }
+
     /// initialize the CPU and return it
     fn new(mmu: MMU) -> CPU {
 
@@ -216,6 +229,9 @@ impl CPU {
         // bit
         cpu.ops[0x24] = Instr::new(CPU::z, CPU::op_bit);
         cpu.ops[0x2C] = Instr::new(CPU::a, CPU::op_bit);
+
+        // brk
+        cpu.ops[0x00] = Instr::new(CPU::im, CPU::op_brk);
 
         cpu
     }
@@ -439,12 +455,12 @@ impl CPU {
 // set the pc to point to the first byte in ROM.
 // TODO: expand to allow video RAM, and static program RAM, and static program ROM 
 // (static data).
-fn make_cpu(rom_init: Vec<u8>) -> CPU {
+fn make_cpu(rom_init: Option<Vec<u8>>) -> CPU {
         let mut mmu = MMU::new(&Vec::new());
         // RAM
         mmu.add_block(&Block::new(0, 0x200, false, None));
         // ROM
-        mmu.add_block(&Block::new(0x1000, 0x100, true, Some(rom_init)));
+        mmu.add_block(&Block::new(0x1000, 0x100, true, rom_init));
 
         let mut cpu = CPU::new(mmu);
         cpu.r.pc = 0x1000;
@@ -467,7 +483,7 @@ mod tests {
 
     #[test]
     fn test_to_bcd() {
-        let mut cpu = make_cpu(vec![]);
+        let mut cpu = make_cpu(Some(vec![]));
 
         assert_eq!(cpu.to_bcd(0), 0);
         assert_eq!(cpu.to_bcd(5), 0x05);
@@ -477,7 +493,7 @@ mod tests {
 
     #[test]
     fn test_from_bcd() {
-        let mut cpu = make_cpu(vec![]);
+        let mut cpu = make_cpu(None);
 
         assert_eq!(cpu.from_bcd(0), 0);
         assert_eq!(cpu.from_bcd(0x05), 5);
@@ -487,7 +503,7 @@ mod tests {
 
     #[test]
     fn test_from_twos_com() {
-        let mut cpu = make_cpu(vec![]);
+        let mut cpu = make_cpu(None);
 
         assert_eq!(cpu.from_twos_com(0x00), 0);
         assert_eq!(cpu.from_twos_com(0x01), 1);
@@ -498,7 +514,7 @@ mod tests {
 
     #[test]
     fn test_next_byte() {
-        let mut cpu = make_cpu(vec![1, 2, 3]);
+        let mut cpu = make_cpu(Some(vec![1, 2, 3]));
 
         assert_eq!(cpu.next_byte(), 1);
         assert_eq!(cpu.next_byte(), 2);
@@ -508,7 +524,7 @@ mod tests {
 
     #[test]
     fn test_next_word() {
-        let mut cpu = make_cpu(vec![1, 2, 3, 4, 5, 9, 10]);
+        let mut cpu = make_cpu(Some(vec![1, 2, 3, 4, 5, 9, 10]));
 
         assert_eq!(cpu.next_word(), 0x0201);
         cpu.next_byte();
@@ -518,7 +534,7 @@ mod tests {
 
     #[test]
     fn test_stack() {
-        let mut cpu = make_cpu(vec![]);
+        let mut cpu = make_cpu(None);
 
         cpu.stack_push(0x10);
         assert_eq!(cpu.stack_pop(), 0x10);
@@ -536,8 +552,7 @@ mod tests {
 
     #[test]
     fn test_zeropage_addressing() {
-        // set up MMU and CPU
-        let mut cpu = make_cpu(vec![1, 2, 3, 4, 5]);
+        let mut cpu = make_cpu(Some(vec![1, 2, 3, 4, 5]));
         assert_eq!(cpu.z_a(), 1);
 
         cpu.r.x = 0;
@@ -553,9 +568,8 @@ mod tests {
 
     #[test]
     fn test_absolute_addressing() {
-        // set up MMU and CPU
         let mut cpu = make_cpu(
-            vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            Some(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         );
         assert_eq!(cpu.a_a(), 0x0201);
 
@@ -581,14 +595,13 @@ mod tests {
 
     #[test]
     fn test_indirect_addressing() {
-        // set up MMU and CPU
         let mut cpu = make_cpu(
-            vec![
+            Some(vec![
                 0x06, 0x10,
                 0xFF, 0x10,
                 0x00, 0x00,
                 0xF0, 0x00,
-            ]
+            ])
         );
 
         assert_eq!(cpu.i_a(), 0x00F0);
@@ -620,7 +633,7 @@ mod tests {
 
     #[test]
     fn test_adc() {
-        let mut cpu = make_cpu(vec![1, 2, 250, 3, 100, 100]);
+        let mut cpu = make_cpu(Some(vec![1, 2, 250, 3, 100, 100]));
         let src = (cpu.ops[0x69].addr)(&mut cpu);
         (cpu.ops[0x69].code)(&mut cpu, src);
         assert_eq!(cpu.r.a, 1);
@@ -650,7 +663,7 @@ mod tests {
 
     #[test]
     fn test_adc_decimal() {
-        let mut cpu = make_cpu(vec![0x01, 0x55, 0x50]);
+        let mut cpu = make_cpu(Some(vec![0x01, 0x55, 0x50]));
         cpu.r.set_flag('D', true);
 
         let src = (cpu.ops[0x69].addr)(&mut cpu);
@@ -669,7 +682,7 @@ mod tests {
 
     #[test]
     fn test_and() {
-        let mut cpu = make_cpu(vec![0xFF, 0xFF, 0x01, 0x2]);
+        let mut cpu = make_cpu(Some(vec![0xFF, 0xFF, 0x01, 0x2]));
 
         cpu.r.a = 0x00;
         let src = (cpu.ops[0x29].addr)(&mut cpu);
@@ -694,7 +707,7 @@ mod tests {
 
     #[test]
     fn test_asl() {
-        let mut cpu = make_cpu(vec![0x00]);
+        let mut cpu = make_cpu(Some(vec![0x00]));
 
         cpu.r.a = 1;
         let src = (cpu.ops[0x0a].addr)(&mut cpu);
@@ -711,7 +724,7 @@ mod tests {
 
     #[test]
     fn test_branch() {
-        let mut cpu = make_cpu(vec![0x01, 0x00, 0x00, 0xFC]);
+        let mut cpu = make_cpu(Some(vec![0x01, 0x00, 0x00, 0xFC]));
 
         let src = (cpu.ops[0x10].addr)(&mut cpu);
         (cpu.ops[0x10].code)(&mut cpu, src);
@@ -733,7 +746,7 @@ mod tests {
 
     #[test]
     fn test_bit() {
-        let mut cpu = make_cpu(vec![0x00, 0x00, 0x10]);
+        let mut cpu = make_cpu(Some(vec![0x00, 0x00, 0x10]));
         cpu.mmu.write(0, 0xFF);
         cpu.r.a = 1;
 
@@ -748,6 +761,23 @@ mod tests {
         assert_eq!(cpu.r.get_flag('Z'), true);
         assert_eq!(cpu.r.get_flag('N'), false);
         assert_eq!(cpu.r.get_flag('V'), false);
+    }
+
+    #[test]
+    fn test_brk() {
+        let mut cpu = make_cpu(None);
+        let block = Block::new(0xFFFE, 0x2, true, Some(vec![0x34, 0x12]));
+        cpu.mmu.add_block(&block);
+        cpu.r.p = 239;
+
+        let src = (cpu.ops[0x00].addr)(&mut cpu);
+        (cpu.ops[0x00].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('B'), true);
+        assert_eq!(cpu.r.get_flag('I'), true);
+        assert_eq!(cpu.r.pc, 0x1234);
+        assert_eq!(cpu.stack_pop(), 255);
+        assert_eq!(cpu.stack_pop_word(), 0x1001);
+
     }
 
     // ----- comprehensive tests -----
