@@ -158,6 +158,14 @@ impl CPU {
         }
     }
 
+    // bit
+    fn op_bit(&mut self, src: u16) {
+        let a = (self.r.a as u16);
+        self.r.set_flag('Z', a & src == 0);
+        self.r.set_flag('N', src & 0x80 != 0);
+        self.r.set_flag('V', src & 0x40 != 0);
+    }
+
     /// initialize the CPU and return it
     fn new(mmu: MMU) -> CPU {
 
@@ -202,9 +210,12 @@ impl CPU {
         cpu.ops[0x70] = Instr::new(CPU::im, CPU::op_bvc_t);
         cpu.ops[0x90] = Instr::new(CPU::im, CPU::op_bcc);
         cpu.ops[0xB0] = Instr::new(CPU::im, CPU::op_bcs);
-
         cpu.ops[0xD0] = Instr::new(CPU::im, CPU::op_bne);
         cpu.ops[0xF0] = Instr::new(CPU::im, CPU::op_beq);
+
+        // bit
+        cpu.ops[0x24] = Instr::new(CPU::z, CPU::op_bit);
+        cpu.ops[0x2C] = Instr::new(CPU::a, CPU::op_bit);
 
         cpu
     }
@@ -698,7 +709,6 @@ mod tests {
         assert_eq!(cpu.mmu.read(1), 8);
     }
 
-
     #[test]
     fn test_branch() {
         let mut cpu = make_cpu(vec![0x01, 0x00, 0x00, 0xFC]);
@@ -719,7 +729,25 @@ mod tests {
         let src = (cpu.ops[0xD0].addr)(&mut cpu);
         (cpu.ops[0xD0].code)(&mut cpu, src);
         assert_eq!(cpu.r.pc, 0x1002);
+    }
 
+    #[test]
+    fn test_bit() {
+        let mut cpu = make_cpu(vec![0x00, 0x00, 0x10]);
+        cpu.mmu.write(0, 0xFF);
+        cpu.r.a = 1;
+
+        let src = (cpu.ops[0x24].addr)(&mut cpu);
+        (cpu.ops[0x24].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('N'), true);
+        assert_eq!(cpu.r.get_flag('V'), true);
+
+        let src = (cpu.ops[0x2C].addr)(&mut cpu);
+        (cpu.ops[0x2C].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+        assert_eq!(cpu.r.get_flag('V'), false);
     }
 
     // ----- comprehensive tests -----
