@@ -47,7 +47,7 @@ impl CPU {
         panic!("Error, this op is not implemented.")
     }
 
-    // add memory to accumulator with carry
+    // add -add memory to accumulator with carry
     fn op_adc(&mut self, src: u16) {
 
         let v1 = self.r.a as u16;
@@ -75,6 +75,25 @@ impl CPU {
         self.r.a = (self.r.a & (src as u8)) & 0xFF;
         let flag = self.r.a;
         self.r.zn(flag);
+    }
+
+    // asl - arithmetic shift left
+    fn op_asl(&mut self, src: u16) {
+        let mut v = self.mmu.read(src as usize);
+        println!("src {}, v {}, acc {}", src, v, self.r.a);
+        v = v << 1;
+        self.mmu.write(src as usize, v);
+
+        self.r.set_flag('C', v > 0xFF);
+        self.r.zn(v & 0xFF);
+    }
+
+    fn op_asl_acc(&mut self, src: u16) {
+        let v = self.r.a << 1;
+        self.r.a = v & 0xFF;
+
+        self.r.set_flag('C', v > 0xFF);
+        self.r.zn(v & 0xFF);
     }
 
     /// initialize the CPU and return it
@@ -106,6 +125,16 @@ impl CPU {
         cpu.ops[0x39] = Instr::new(CPU::ay, CPU::op_and);
         cpu.ops[0x21] = Instr::new(CPU::ix, CPU::op_and);
         cpu.ops[0x31] = Instr::new(CPU::iy, CPU::op_and);
+
+        // asl
+        cpu.ops[0x0a] = Instr::new(CPU::im, CPU::op_asl_acc);
+        cpu.ops[0x06] = Instr::new(CPU::z, CPU::op_asl);
+        cpu.ops[0x16] = Instr::new(CPU::zx, CPU::op_asl);
+        cpu.ops[0x0e] = Instr::new(CPU::a, CPU::op_asl);
+        cpu.ops[0x1e] = Instr::new(CPU::ax, CPU::op_asl);
+
+        // bit
+        cpu.ops[0x0a] = Instr::new(CPU::im, CPU::op_bcc);
 
         cpu
     }
@@ -580,6 +609,45 @@ mod tests {
         let src = (cpu.ops[0x29].addr)(&mut cpu);
         (cpu.ops[0x29].code)(&mut cpu, src);
         assert_eq!(cpu.r.a, 0x00);
+    }
+
+    #[test]
+    fn test_asl() {
+        let mut cpu = make_cpu(vec![0x00]);
+
+        cpu.r.a = 1;
+        let src = (cpu.ops[0x0a].addr)(&mut cpu);
+        (cpu.ops[0x0a].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 2);
+
+        // TODO not sure I implemented this correctly...
+        cpu.mmu.write(0, 1);
+        cpu.mmu.write(1, 4);
+        let src = (cpu.ops[0x06].addr)(&mut cpu);
+        (cpu.ops[0x06].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(1), 8);
+    }
+
+
+    #[test]
+    fn test_bit() {
+        let mut cpu = make_cpu(vec![0x00, 0x00, 0x10]);
+        cpu.mmu.write(0, 0xFF);
+        cpu.r.a = 1;
+
+        // zero page
+        let src = (cpu.ops[0x24].addr)(&mut cpu);
+        (cpu.ops[0x24].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('N'), true);
+        assert_eq!(cpu.r.get_flag('V'), true);
+
+        // absolute
+        let src = (cpu.ops[0x2c].addr)(&mut cpu);
+        (cpu.ops[0x2c].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+        assert_eq!(cpu.r.get_flag('V'), false);
     }
 
     // ----- comprehensive tests -----

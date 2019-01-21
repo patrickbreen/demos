@@ -27,6 +27,7 @@ This is an emulation of a 6502 CPU and a compatible MMU. The CPU and MMU are imp
 This CPU was an 8-bit microprocessor used in the Atari, Apple II, Nintendo NES, Commodore 64, and others. It was simmilar to the Zilog Z80 and other 8-bit microcontrollers still used commonly today.
 
 I used these sources.
+- http://www.6502.org/tutorials/6502opcodes.html#ASL
 - https://github.com/docmarionum1/py65emu
 - http://archive.6502.org/datasheets/rockwell_r650x_r651x.pdf
 
