@@ -47,7 +47,7 @@ impl CPU {
         panic!("Error, this op is not implemented.")
     }
 
-    // add -add memory to accumulator with carry
+    // add - add memory to accumulator with carry
     fn op_adc(&mut self, src: u16) {
 
         let v1 = self.r.a as u16;
@@ -96,18 +96,65 @@ impl CPU {
         self.r.zn(v & 0xFF);
     }
 
-    fn op_bcc(mut self, src: u16) {
-        if self.r.get_flag('C') == false {
-            let o = self.r.pc;
-            self.r.pc += self.test_from_twos_com(d);
+    // Branching ops
+    fn op_bpl(&mut self, src: u16) {
+        if self.r.get_flag('N') == false {
+            self.branch(src);
+        }
+    }
 
-            // if jumping in the first page, it takes one cycle,
-            // otherwise, it takes two.
-            if (o/0xFF) == (self.r.pc/0xFF) {
-                self.r.cc += 1;
-            } else {
-                self.r.cc += 2;
-            }
+    fn op_bmi(&mut self, src: u16) {
+        if self.r.get_flag('N') == true {
+            self.branch(src);
+        }
+    }
+
+    fn op_bvc_f(&mut self, src: u16) {
+        if self.r.get_flag('V') == false {
+            self.branch(src);
+        }
+    }
+
+    fn op_bvc_t(&mut self, src: u16) {
+        if self.r.get_flag('V') == true {
+            self.branch(src);
+        }
+    }
+
+    fn op_bcc(&mut self, src: u16) {
+        if self.r.get_flag('C') == false {
+            self.branch(src);
+        }
+    }
+
+    fn op_bcs(&mut self, src: u16) {
+        if self.r.get_flag('C') == true {
+            self.branch(src);
+        }
+    }
+
+    fn op_bne(&mut self, src: u16) {
+        if self.r.get_flag('Z') == false {
+            self.branch(src);
+        }
+    }
+
+    fn op_beq(&mut self, src: u16) {
+        if self.r.get_flag('Z') == true {
+            self.branch(src);
+        }
+    }
+
+    fn branch(&mut self, src: u16) {
+        let o = self.r.pc;
+        self.r.pc = self.r.pc.wrapping_add(self.from_twos_com(src) as u16);
+
+        // if jumping in the first page, it takes one cycle,
+        // otherwise, it takes two.
+        if (o/0xFF) == (self.r.pc/0xFF) {
+            self.r.cc += 1;
+        } else {
+            self.r.cc += 2;
         }
     }
 
@@ -123,9 +170,9 @@ impl CPU {
         // set up op table
         // adc
         cpu.ops[0x69] = Instr::new(CPU::im, CPU::op_adc);
-        cpu.ops[0x65] = Instr::new(CPU::z, CPU::op_adc);
+        cpu.ops[0x65] = Instr::new(CPU::z,  CPU::op_adc);
         cpu.ops[0x75] = Instr::new(CPU::zx, CPU::op_adc);
-        cpu.ops[0x6D] = Instr::new(CPU::a, CPU::op_adc);
+        cpu.ops[0x6D] = Instr::new(CPU::a,  CPU::op_adc);
         cpu.ops[0x7D] = Instr::new(CPU::ax, CPU::op_adc);
         cpu.ops[0x79] = Instr::new(CPU::ay, CPU::op_adc);
         cpu.ops[0x61] = Instr::new(CPU::ix, CPU::op_adc);
@@ -133,9 +180,9 @@ impl CPU {
 
         // and
         cpu.ops[0x29] = Instr::new(CPU::im, CPU::op_and);
-        cpu.ops[0x25] = Instr::new(CPU::z, CPU::op_and);
+        cpu.ops[0x25] = Instr::new(CPU::z,  CPU::op_and);
         cpu.ops[0x35] = Instr::new(CPU::zx, CPU::op_and);
-        cpu.ops[0x2D] = Instr::new(CPU::a, CPU::op_and);
+        cpu.ops[0x2D] = Instr::new(CPU::a,  CPU::op_and);
         cpu.ops[0x3D] = Instr::new(CPU::ax, CPU::op_and);
         cpu.ops[0x39] = Instr::new(CPU::ay, CPU::op_and);
         cpu.ops[0x21] = Instr::new(CPU::ix, CPU::op_and);
@@ -143,13 +190,21 @@ impl CPU {
 
         // asl
         cpu.ops[0x0a] = Instr::new(CPU::im, CPU::op_asl_acc);
-        cpu.ops[0x06] = Instr::new(CPU::z, CPU::op_asl);
+        cpu.ops[0x06] = Instr::new(CPU::z,  CPU::op_asl);
         cpu.ops[0x16] = Instr::new(CPU::zx, CPU::op_asl);
-        cpu.ops[0x0e] = Instr::new(CPU::a, CPU::op_asl);
+        cpu.ops[0x0e] = Instr::new(CPU::a,  CPU::op_asl);
         cpu.ops[0x1e] = Instr::new(CPU::ax, CPU::op_asl);
 
-        // b
-        cpu.ops[0x10] = Instr::new(CPU::im, CPU::op_bcc);
+        // branching
+        cpu.ops[0x10] = Instr::new(CPU::im, CPU::op_bpl);
+        cpu.ops[0x30] = Instr::new(CPU::im, CPU::op_bmi);
+        cpu.ops[0x50] = Instr::new(CPU::im, CPU::op_bvc_f);
+        cpu.ops[0x70] = Instr::new(CPU::im, CPU::op_bvc_t);
+        cpu.ops[0x90] = Instr::new(CPU::im, CPU::op_bcc);
+        cpu.ops[0xB0] = Instr::new(CPU::im, CPU::op_bcs);
+
+        cpu.ops[0xD0] = Instr::new(CPU::im, CPU::op_bne);
+        cpu.ops[0xF0] = Instr::new(CPU::im, CPU::op_beq);
 
         cpu
     }
@@ -210,8 +265,8 @@ impl CPU {
         val / 10 * 16 + (val % 10)
     }
 
-    fn from_twos_com(&self, val: u16) -> i8 {
-        (((val as i16) & 0x7F) - ((val as i16) & 0x80)) as i8
+    fn from_twos_com(&self, val: u16) -> i16 {
+        ((val as i16) & 0x7F) - ((val as i16) & 0x80)
     }
 
     fn interrupt_address(&mut self, interrupt: String) -> u16 {
@@ -645,24 +700,26 @@ mod tests {
 
 
     #[test]
-    fn test_bit() {
-        let mut cpu = make_cpu(vec![0x00, 0x00, 0x10]);
-        cpu.mmu.write(0, 0xFF);
-        cpu.r.a = 1;
+    fn test_branch() {
+        let mut cpu = make_cpu(vec![0x01, 0x00, 0x00, 0xFC]);
 
-        // zero page
-        let src = (cpu.ops[0x24].addr)(&mut cpu);
-        (cpu.ops[0x24].code)(&mut cpu, src);
-        assert_eq!(cpu.r.get_flag('Z'), false);
-        assert_eq!(cpu.r.get_flag('N'), true);
-        assert_eq!(cpu.r.get_flag('V'), true);
+        let src = (cpu.ops[0x10].addr)(&mut cpu);
+        (cpu.ops[0x10].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1002);
 
-        // absolute
-        let src = (cpu.ops[0x2c].addr)(&mut cpu);
-        (cpu.ops[0x2c].code)(&mut cpu, src);
-        assert_eq!(cpu.r.get_flag('Z'), true);
-        assert_eq!(cpu.r.get_flag('N'), false);
-        assert_eq!(cpu.r.get_flag('V'), false);
+        let src = (cpu.ops[0x70].addr)(&mut cpu);
+        (cpu.ops[0x70].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1003);
+
+        cpu.r.set_flag('C', true);
+        let src = (cpu.ops[0xB0].addr)(&mut cpu);
+        (cpu.ops[0xB0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1000);
+
+        let src = (cpu.ops[0xD0].addr)(&mut cpu);
+        (cpu.ops[0xD0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1002);
+
     }
 
     // ----- comprehensive tests -----
