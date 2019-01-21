@@ -96,6 +96,21 @@ impl CPU {
         self.r.zn(v & 0xFF);
     }
 
+    fn op_bcc(mut self, src: u16) {
+        if self.r.get_flag('C') == false {
+            let o = self.r.pc;
+            self.r.pc += self.test_from_twos_com(d);
+
+            // if jumping in the first page, it takes one cycle,
+            // otherwise, it takes two.
+            if (o/0xFF) == (self.r.pc/0xFF) {
+                self.r.cc += 1;
+            } else {
+                self.r.cc += 2;
+            }
+        }
+    }
+
     /// initialize the CPU and return it
     fn new(mmu: MMU) -> CPU {
 
@@ -133,8 +148,8 @@ impl CPU {
         cpu.ops[0x0e] = Instr::new(CPU::a, CPU::op_asl);
         cpu.ops[0x1e] = Instr::new(CPU::ax, CPU::op_asl);
 
-        // bit
-        cpu.ops[0x0a] = Instr::new(CPU::im, CPU::op_bcc);
+        // b
+        cpu.ops[0x10] = Instr::new(CPU::im, CPU::op_bcc);
 
         cpu
     }
