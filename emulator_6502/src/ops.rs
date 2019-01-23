@@ -64,7 +64,7 @@ fn make_op_table() -> [Instr; 256] {
     // brk
     ops[0x00] = Instr::new(CPU::im, op_brk);
 
-    // cmp
+    // cp
     ops[0xC9] = Instr::new(CPU::im, op_cmp);
     ops[0xC5] = Instr::new(CPU::z, op_cmp);
     ops[0xD5] = Instr::new(CPU::zx, op_cmp);
@@ -73,6 +73,14 @@ fn make_op_table() -> [Instr; 256] {
     ops[0xD9] = Instr::new(CPU::ay, op_cmp);
     ops[0xC1] = Instr::new(CPU::ix, op_cmp);
     ops[0xD1] = Instr::new(CPU::iy, op_cmp);
+
+    ops[0xE0] = Instr::new(CPU::im, op_cpx);
+    ops[0xE4] = Instr::new(CPU::z, op_cpx);
+    ops[0xEC] = Instr::new(CPU::a, op_cpx);
+
+    ops[0xC0] = Instr::new(CPU::im, op_cpy);
+    ops[0xC4] = Instr::new(CPU::z, op_cpy);
+    ops[0xCC] = Instr::new(CPU::a, op_cpy);
 
     ops
 }
@@ -232,7 +240,16 @@ fn op_cmp(cpu: &mut CPU, src: u16) {
     let a = cpu.r.a as u16;
     cp(cpu, a, src);
 }
-
+//cpx
+fn op_cpx(cpu: &mut CPU, src: u16) {
+    let x = cpu.r.x as u16;
+    cp(cpu, x, src);
+}
+//cpy
+fn op_cpy(cpu: &mut CPU, src: u16) {
+    let y = cpu.r.y as u16;
+    cp(cpu, y, src);
+}
 
 #[cfg(test)]
 mod tests {
@@ -444,6 +461,56 @@ mod tests {
         (ops[0xC9].code)(&mut cpu, src);
         assert_eq!(cpu.r.get_flag('Z'), false);
         assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), true);
+    }
+
+    #[test]
+    fn test_cpx() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x0F, 0x10, 0x11]));
+
+        cpu.r.x = 0x10;
+        let src = (ops[0xE0].addr)(&mut cpu);
+        (ops[0xE0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xE0].addr)(&mut cpu);
+        (ops[0xE0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), true);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xE0].addr)(&mut cpu);
+        (ops[0xE0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), false);
+        assert_eq!(cpu.r.get_flag('N'), true);
+    }
+
+    #[test]
+    fn test_cpy() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x0F, 0x10, 0x11]));
+
+        cpu.r.y = 0x10;
+        let src = (ops[0xC0].addr)(&mut cpu);
+        (ops[0xC0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xC0].addr)(&mut cpu);
+        (ops[0xC0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), true);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xC0].addr)(&mut cpu);
+        (ops[0xC0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), false);
         assert_eq!(cpu.r.get_flag('N'), true);
     }
 }
