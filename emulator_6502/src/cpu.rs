@@ -21,6 +21,7 @@ impl Instr {
     }
 }
 
+#[derive(Debug)]
 pub struct CPU {
 
     /// The MMU, modeled here as "owned" by the CPU
