@@ -4,6 +4,5 @@ mod registers;
 mod ops;
 
 fn main() {
-
     println!("Hello, world!");
 }

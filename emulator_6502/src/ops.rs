@@ -15,6 +15,10 @@ use cpu::{Instr, CPU, make_cpu};
 // TODO: this is too simplistic. Needs to track the cycle count, whether it acts
 //  on values or addresses and target register if valid
 
+fn no_arg(cpu: &mut CPU) -> u16 {
+    0
+}
+
 
 fn make_op_table() -> [Instr; 256] {
     let mut ops = [Instr::new(CPU::im, op_not_implemented); 256];
@@ -58,29 +62,70 @@ fn make_op_table() -> [Instr; 256] {
     ops[0xF0] = Instr::new(CPU::im, op_beq);
 
     // bit
-    ops[0x24] = Instr::new(CPU::z, op_bit);
-    ops[0x2C] = Instr::new(CPU::a, op_bit);
+    ops[0x24] = Instr::new(CPU::z,  op_bit);
+    ops[0x2C] = Instr::new(CPU::a,  op_bit);
 
     // brk
     ops[0x00] = Instr::new(CPU::im, op_brk);
 
     // cp
     ops[0xC9] = Instr::new(CPU::im, op_cmp);
-    ops[0xC5] = Instr::new(CPU::z, op_cmp);
+    ops[0xC5] = Instr::new(CPU::z,  op_cmp);
     ops[0xD5] = Instr::new(CPU::zx, op_cmp);
-    ops[0xCD] = Instr::new(CPU::a, op_cmp);
+    ops[0xCD] = Instr::new(CPU::a,  op_cmp);
     ops[0xDD] = Instr::new(CPU::ax, op_cmp);
     ops[0xD9] = Instr::new(CPU::ay, op_cmp);
     ops[0xC1] = Instr::new(CPU::ix, op_cmp);
     ops[0xD1] = Instr::new(CPU::iy, op_cmp);
 
     ops[0xE0] = Instr::new(CPU::im, op_cpx);
-    ops[0xE4] = Instr::new(CPU::z, op_cpx);
-    ops[0xEC] = Instr::new(CPU::a, op_cpx);
+    ops[0xE4] = Instr::new(CPU::z,  op_cpx);
+    ops[0xEC] = Instr::new(CPU::a,  op_cpx);
 
     ops[0xC0] = Instr::new(CPU::im, op_cpy);
-    ops[0xC4] = Instr::new(CPU::z, op_cpy);
-    ops[0xCC] = Instr::new(CPU::a, op_cpy);
+    ops[0xC4] = Instr::new(CPU::z,  op_cpy);
+    ops[0xCC] = Instr::new(CPU::a,  op_cpy);
+
+    // dec
+    ops[0xC6] = Instr::new(CPU::z,  op_dec);
+    ops[0xD6] = Instr::new(CPU::zx, op_dec);
+    ops[0xCE] = Instr::new(CPU::a,  op_dec);
+    ops[0xDE] = Instr::new(CPU::ax, op_dec);
+
+    ops[0xCA] = Instr::new(CPU::im,  op_dex);
+    ops[0x88] = Instr::new(CPU::im,  op_dey);
+
+    //eor
+    ops[0x49] = Instr::new(CPU::im,  op_eor);
+    ops[0x45] = Instr::new(CPU::z,  op_eor);
+    ops[0x55] = Instr::new(CPU::zx,  op_eor);
+    ops[0x4d] = Instr::new(CPU::a,  op_eor);
+    ops[0x5d] = Instr::new(CPU::ax,  op_eor);
+    ops[0x59] = Instr::new(CPU::ay,  op_eor);
+    ops[0x41] = Instr::new(CPU::ix,  op_eor);
+    ops[0x51] = Instr::new(CPU::iy,  op_eor);
+
+    //flag instructions
+    ops[0x18] = Instr::new(no_arg,  op_clc);
+    ops[0x58] = Instr::new(no_arg,  op_cli);
+    ops[0xB8] = Instr::new(no_arg,  op_clv);
+    ops[0xD8] = Instr::new(no_arg,  op_cld);
+
+    ops[0x38] = Instr::new(no_arg,  op_sec);
+    ops[0x78] = Instr::new(no_arg,  op_sei);
+    ops[0xF8] = Instr::new(no_arg,  op_sed);
+
+    //inc
+    ops[0xE6] = Instr::new(CPU::z,  op_inc);
+    ops[0xF6] = Instr::new(CPU::zx,  op_inc);
+    ops[0xEE] = Instr::new(CPU::a,  op_inc);
+    ops[0xFE] = Instr::new(CPU::ax,  op_inc);
+
+    ops[0xE8] = Instr::new(CPU::im,  op_inx);
+
+    ops[0xC8] = Instr::new(CPU::im,  op_iny);
+
+
 
     ops
 }
@@ -240,15 +285,103 @@ fn op_cmp(cpu: &mut CPU, src: u16) {
     let a = cpu.r.a as u16;
     cp(cpu, a, src);
 }
-//cpx
+
 fn op_cpx(cpu: &mut CPU, src: u16) {
     let x = cpu.r.x as u16;
     cp(cpu, x, src);
 }
-//cpy
+
 fn op_cpy(cpu: &mut CPU, src: u16) {
     let y = cpu.r.y as u16;
     cp(cpu, y, src);
+}
+
+//dec
+fn op_dec(cpu: &mut CPU, src: u16) {
+    let mut v = cpu.mmu.read(src as usize);
+    if v == 0 {
+        v = 0xFF;
+    } else {
+        v -= 1;
+    }
+    cpu.mmu.write(src as usize, v);
+    cpu.r.zn(v);
+}
+
+fn op_dex(cpu: &mut CPU, src: u16) {
+    let mut v = cpu.r.x;
+    if v == 0 {
+        v = 0xFF;
+    } else {
+        v -= 1;
+    }
+    cpu.r.x = v;
+    cpu.r.zn(v);
+}
+
+fn op_dey(cpu: &mut CPU, src: u16) {
+    let mut v = cpu.r.y;
+    if v == 0 {
+        v = 0xFF;
+    } else {
+        v -= 1;
+    }
+    cpu.r.x = v;
+    cpu.r.zn(v);
+}
+
+fn op_eor(cpu: &mut CPU, src: u16) {
+    let v = cpu.r.a ^ (src as u8);
+    cpu.r.a = v;
+    cpu.r.zn(v);
+}
+
+// flag ops
+fn op_clc(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('C', false);
+}
+
+fn op_cli(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('I', false);
+}
+
+fn op_clv(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('V', false);
+}
+
+fn op_cld(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('D', false);
+}
+
+fn op_sec(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('C', true);
+}
+
+fn op_sei(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('I', true);
+}
+
+fn op_sed(cpu: &mut CPU, src: u16) {
+    cpu.r.set_flag('D', true);
+}
+
+//inc
+fn op_inc(cpu: &mut CPU, src: u16) {
+    let v = (cpu.mmu.read(src as usize)+1) & 0xFF;
+    cpu.mmu.write(src as usize, v);
+    cpu.r.zn(v);
+}
+
+fn op_inx(cpu: &mut CPU, src: u16) {
+    let v = (cpu.r.x+1) & 0xFF;
+    cpu.r.x = v;
+    cpu.r.zn(v);
+}
+
+fn op_iny(cpu: &mut CPU, src: u16) {
+    let v = (cpu.r.y+1) & 0xFF;
+    cpu.r.y = v;
+    cpu.r.zn(v);
 }
 
 #[cfg(test)]
@@ -512,5 +645,105 @@ mod tests {
         assert_eq!(cpu.r.get_flag('Z'), false);
         assert_eq!(cpu.r.get_flag('C'), false);
         assert_eq!(cpu.r.get_flag('N'), true);
+    }
+
+    #[test]
+    fn test_dec() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x00]));
+        let src = (ops[0xC6].addr)(&mut cpu);
+        (ops[0xC6].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(0x00), 0xFF);
+    }
+
+    #[test]
+    fn test_dex() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        let src = (ops[0xCA].addr)(&mut cpu);
+        (ops[0xCA].code)(&mut cpu, src);
+        assert_eq!(cpu.r.x, 0xFF);
+    }
+
+    #[test]
+    fn test_dey() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        let src = (ops[0x88].addr)(&mut cpu);
+        (ops[0x88].code)(&mut cpu, src);
+        assert_eq!(cpu.r.x, 0xFF);
+    }
+
+    #[test]
+    fn test_eor() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x0F, 0xF0, 0xFF]));
+        let src = (ops[0x49].addr)(&mut cpu);
+        (ops[0x49].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x0F);
+
+        let src = (ops[0x49].addr)(&mut cpu);
+        (ops[0x49].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xFF);
+
+        let src = (ops[0x49].addr)(&mut cpu);
+        (ops[0x49].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x00);
+    }
+
+    #[test]
+    fn test_flag_ops() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        let src = (ops[0x38].addr)(&mut cpu);
+        (ops[0x38].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        let src = (ops[0x78].addr)(&mut cpu);
+        (ops[0x78].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('I'), true);
+        let src = (ops[0xF8].addr)(&mut cpu);
+        (ops[0xF8].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('D'), true);
+
+        cpu.r.set_flag('V', true);
+        let src = (ops[0x18].addr)(&mut cpu);
+        (ops[0x18].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('C'), false);
+        let src = (ops[0x58].addr)(&mut cpu);
+        (ops[0x58].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('I'), false);
+        let src = (ops[0xB8].addr)(&mut cpu);
+        (ops[0xB8].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('V'), false);
+        let src = (ops[0xD8].addr)(&mut cpu);
+        (ops[0xD8].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('D'), false);
+    }
+
+    #[test]
+    fn test_inc() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x00,]));
+        let src = (ops[0xe6].addr)(&mut cpu);
+        (ops[0xe6].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(0x00), 0x01);
+    }
+
+    #[test]
+    fn test_inx() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        let src = (ops[0xE8].addr)(&mut cpu);
+        (ops[0xE8].code)(&mut cpu, src);
+        assert_eq!(cpu.r.x, 0x01);
+    }
+
+    #[test]
+    fn test_iny() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        let src = (ops[0xC8].addr)(&mut cpu);
+        (ops[0xC8].code)(&mut cpu, src);
+        assert_eq!(cpu.r.y, 0x01);
     }
 }
