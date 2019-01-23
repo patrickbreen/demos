@@ -420,5 +420,30 @@ mod tests {
         assert_eq!(cpu.r.get_flag('Z'), false);
         assert_eq!(cpu.r.get_flag('C'), false);
         assert_eq!(cpu.r.get_flag('N'), true);
+
+        cpu.r.a = 0xFF;
+        let src = (ops[0xC9].addr)(&mut cpu);
+        (ops[0xC9].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xC9].addr)(&mut cpu);
+        (ops[0xC9].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), true);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), false);
+
+        let src = (ops[0xC9].addr)(&mut cpu);
+        (ops[0xC9].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), true);
+
+        let src = (ops[0xC9].addr)(&mut cpu);
+        (ops[0xC9].code)(&mut cpu, src);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+        assert_eq!(cpu.r.get_flag('N'), true);
     }
 }
