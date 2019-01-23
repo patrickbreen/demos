@@ -37,7 +37,6 @@ impl Block {
             }
         };
 
-
         // return block
         Block {
             start: start,
@@ -90,7 +89,6 @@ impl MMU {
     }
 
     pub fn add_block(&mut self, new_block: &Block) {
-
         // check if new block overlaps with existing blocks
         for block in &self.blocks {
             let new_end_intersects = 
