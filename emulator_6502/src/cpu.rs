@@ -354,8 +354,6 @@ mod tests {
     }
 
     // ----- test addressing modes -----
-
-
     #[test]
     fn test_zeropage_addressing() {
         let mut cpu = make_cpu(Some(vec![1, 2, 3, 4, 5]));

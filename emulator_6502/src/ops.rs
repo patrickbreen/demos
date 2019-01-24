@@ -125,6 +125,10 @@ fn make_op_table() -> [Instr; 256] {
 
     ops[0xC8] = Instr::new(CPU::im,  op_iny);
 
+    //jmp
+    ops[0x4C] = Instr::new(CPU::im,  op_jmp);
+    ops[0x6C] = Instr::new(CPU::i,  op_jmp);
+
 
 
     ops
@@ -169,7 +173,6 @@ fn op_and(cpu: &mut CPU, src: u16) {
 // asl - arithmetic shift left
 fn op_asl(cpu: &mut CPU, src: u16) {
     let mut v = cpu.mmu.read(src as usize);
-    println!("src {}, v {}, acc {}", src, v, cpu.r.a);
     v = v << 1;
     cpu.mmu.write(src as usize, v);
 
@@ -382,6 +385,10 @@ fn op_iny(cpu: &mut CPU, src: u16) {
     let v = (cpu.r.y+1) & 0xFF;
     cpu.r.y = v;
     cpu.r.zn(v);
+}
+
+fn op_jmp(cpu: &mut CPU, src: u16) {
+    cpu.r.pc = src;
 }
 
 #[cfg(test)]
@@ -745,5 +752,29 @@ mod tests {
         let src = (ops[0xC8].addr)(&mut cpu);
         (ops[0xC8].code)(&mut cpu, src);
         assert_eq!(cpu.r.y, 0x01);
+    }
+
+    #[test]
+    fn test_jmp() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(
+            Some(vec![
+                0x02, 0x01,
+                0x02, 0x02,
+                0x01, 0x01,
+                0x01, 0x01,
+            ])
+        );
+        let src = (ops[0x4C].addr)(&mut cpu);
+        (ops[0x4C].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x02);
+
+        cpu.r.pc = 0x1000;
+        cpu.mmu.write(0x102, 0x01);
+        cpu.mmu.write(0x01, 0x03);
+
+        let src = (ops[0x6C].addr)(&mut cpu);
+        (ops[0x6C].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x03);
     }
 }
