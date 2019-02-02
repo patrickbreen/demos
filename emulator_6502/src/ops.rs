@@ -129,6 +129,33 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x4C] = Instr::new(CPU::im,  op_jmp);
     ops[0x6C] = Instr::new(CPU::i,  op_jmp);
 
+    //ld
+    ops[0xA9] = Instr::new(CPU::im,  op_lda);
+    ops[0xA5] = Instr::new(CPU::z,  op_lda);
+    ops[0xB5] = Instr::new(CPU::zx,  op_lda);
+    ops[0xAD] = Instr::new(CPU::a,  op_lda);
+    ops[0xBD] = Instr::new(CPU::ax,  op_lda);
+    ops[0xB9] = Instr::new(CPU::ay,  op_lda);
+    ops[0xA1] = Instr::new(CPU::ix,  op_lda);
+    ops[0xB1] = Instr::new(CPU::iy,  op_lda);
+
+    ops[0xA2] = Instr::new(CPU::im,  op_ldx);
+    ops[0xA6] = Instr::new(CPU::z,  op_ldx);
+    ops[0xB6] = Instr::new(CPU::zy,  op_ldx);
+    ops[0xAE] = Instr::new(CPU::a,  op_ldx);
+    ops[0xBE] = Instr::new(CPU::ay,  op_ldx);
+
+    ops[0xA0] = Instr::new(CPU::im,  op_ldy);
+    ops[0xA4] = Instr::new(CPU::z,  op_ldy);
+    ops[0xB4] = Instr::new(CPU::zx,  op_ldy);
+    ops[0xAC] = Instr::new(CPU::a,  op_ldy);
+    ops[0xBC] = Instr::new(CPU::ax,  op_ldy);
+
+    ops[0x4A] = Instr::new(CPU::im,  op_lsra);
+    ops[0x46] = Instr::new(CPU::z,  op_lsr);
+    ops[0x56] = Instr::new(CPU::zx,  op_lsr);
+    ops[0x4E] = Instr::new(CPU::a,  op_lsr);
+    ops[0x5E] = Instr::new(CPU::ax,  op_lsr);
 
 
     ops
@@ -389,6 +416,40 @@ fn op_iny(cpu: &mut CPU, src: u16) {
 
 fn op_jmp(cpu: &mut CPU, src: u16) {
     cpu.r.pc = src;
+}
+
+fn op_lda(cpu: &mut CPU, src: u16) {
+    cpu.r.a = src as u8;
+    cpu.r.zn(src as u8);
+}
+
+fn op_ldx(cpu: &mut CPU, src: u16) {
+    cpu.r.x = src as u8;
+    cpu.r.zn(src as u8);
+}
+
+fn op_ldy(cpu: &mut CPU, src: u16) {
+    cpu.r.y = src as u8;
+    cpu.r.zn(src as u8);
+}
+
+fn op_lsra(cpu: &mut CPU, src: u16) {
+    let val  = cpu.r.a & 0x01 != 0;
+    cpu.r.set_flag('C', val);
+    let v = cpu.r.a >> 1;
+    cpu.r.a = v;
+    cpu.r.zn(v);
+}
+
+fn op_lsr(cpu: &mut CPU, src: u16) {
+    let mut v = cpu.mmu.read(src as usize);
+    println!("src: {}, v: {}", src, v);
+    let val = v & 0x01 != 0;
+    cpu.r.set_flag('C', val);
+    v = v >> 1;
+    println!("src: {}, v: {}", src, v);
+    cpu.mmu.write(src as usize, v);
+    cpu.r.zn(v);
 }
 
 #[cfg(test)]
@@ -776,5 +837,55 @@ mod tests {
         let src = (ops[0x6C].addr)(&mut cpu);
         (ops[0x6C].code)(&mut cpu, src);
         assert_eq!(cpu.r.pc, 0x03);
+    }
+
+    #[test]
+    fn test_lda() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x01,]));
+        let src = (ops[0xA9].addr)(&mut cpu);
+        (ops[0xA9].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x01);
+    }
+
+    #[test]
+    fn test_ldx() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x01,]));
+        let src = (ops[0xA2].addr)(&mut cpu);
+        (ops[0xA2].code)(&mut cpu, src);
+        assert_eq!(cpu.r.x, 0x01);
+    }
+
+    #[test]
+    fn test_ldy() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x01,]));
+        let src = (ops[0xA0].addr)(&mut cpu);
+        (ops[0xA0].code)(&mut cpu, src);
+        assert_eq!(cpu.r.y, 0x01);
+    }
+
+    #[test]
+    fn test_lsr() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x00,]));
+        cpu.r.a = 0x02;
+
+        let src = (ops[0x4A].addr)(&mut cpu);
+        (ops[0x4A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x01);
+        assert_eq!(cpu.r.get_flag('C'), false);
+
+        let src = (ops[0x4A].addr)(&mut cpu);
+        (ops[0x4A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x00);
+        assert_eq!(cpu.r.get_flag('C'), true);
+
+        cpu.mmu.write(0x00, 0x02);
+        cpu.mmu.write(0x02, 0x02);
+        let src = (ops[0x46].addr)(&mut cpu);
+        (ops[0x46].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(0x02), 0x01);
     }
 }
