@@ -16,6 +16,7 @@ use cpu::{Instr, CPU, make_cpu};
 //  on values or addresses and target register if valid
 
 fn no_arg(cpu: &mut CPU) -> u16 {
+    cpu.r.pc += 1;
     0
 }
 
@@ -156,6 +157,26 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x56] = Instr::new(CPU::zx,  op_lsr);
     ops[0x4E] = Instr::new(CPU::a,  op_lsr);
     ops[0x5E] = Instr::new(CPU::ax,  op_lsr);
+
+    //nop
+    ops[0x1A] = Instr::new(CPU::im,  op_nop);
+    ops[0x3A] = Instr::new(CPU::im,  op_nop);
+    ops[0x5A] = Instr::new(CPU::im,  op_nop);
+    ops[0x7A] = Instr::new(CPU::im,  op_nop);
+    ops[0xDA] = Instr::new(CPU::im,  op_nop);
+    ops[0xEA] = Instr::new(CPU::im,  op_nop);
+    ops[0xFA] = Instr::new(CPU::im,  op_nop);
+
+
+    //ora
+    ops[0x09] = Instr::new(CPU::im,  op_ora);
+    ops[0x05] = Instr::new(CPU::z,  op_ora);
+    ops[0x15] = Instr::new(CPU::zx,  op_ora);
+    ops[0x0D] = Instr::new(CPU::a,  op_ora);
+    ops[0x1D] = Instr::new(CPU::ax,  op_ora);
+    ops[0x19] = Instr::new(CPU::ay,  op_ora);
+    ops[0x01] = Instr::new(CPU::ix,  op_ora);
+    ops[0x11] = Instr::new(CPU::iy,  op_ora);
 
 
     ops
@@ -451,6 +472,17 @@ fn op_lsr(cpu: &mut CPU, src: u16) {
     cpu.mmu.write(src as usize, v);
     cpu.r.zn(v);
 }
+
+fn op_nop(cpu: &mut CPU, src: u16) {
+    
+}
+
+fn op_ora(cpu: &mut CPU, src: u16) {
+    let a = cpu.r.a | (src as u8);
+    cpu.r.a = a;
+    cpu.r.zn(a);
+}
+
 
 #[cfg(test)]
 mod tests {
@@ -887,5 +919,24 @@ mod tests {
         let src = (ops[0x46].addr)(&mut cpu);
         (ops[0x46].code)(&mut cpu, src);
         assert_eq!(cpu.mmu.read(0x02), 0x01);
+    }
+
+
+    #[test]
+    fn test_ora() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x0F, 0xF0, 0xFF]));
+
+        let src = (ops[0x09].addr)(&mut cpu);
+        (ops[0x09].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x0F);
+
+        let src = (ops[0x09].addr)(&mut cpu);
+        (ops[0x09].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xFF);
+
+        let src = (ops[0x09].addr)(&mut cpu);
+        (ops[0x09].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xFF);
     }
 }
