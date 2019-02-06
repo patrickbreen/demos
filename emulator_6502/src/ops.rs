@@ -178,6 +178,12 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x01] = Instr::new(CPU::ix,  op_ora);
     ops[0x11] = Instr::new(CPU::iy,  op_ora);
 
+    //p
+    ops[0x48] = Instr::new(CPU::im,  op_pha);
+    ops[0x68] = Instr::new(CPU::im,  op_pla);
+    ops[0x08] = Instr::new(CPU::im,  op_php);
+    ops[0x28] = Instr::new(CPU::im,  op_plp);
+
 
     ops
 }
@@ -483,6 +489,29 @@ fn op_ora(cpu: &mut CPU, src: u16) {
     cpu.r.zn(a);
 }
 
+fn op_pha(cpu: &mut CPU, src: u16) {
+    let a = cpu.r.a;
+    cpu.stack_push(a);
+    cpu.r.zn(a);
+}
+
+fn op_php(cpu: &mut CPU, src: u16) {
+    let p = cpu.r.p;
+    cpu.stack_push(p);
+    cpu.r.p = p | 0b00100000;
+}
+
+fn op_pla(cpu: &mut CPU, src: u16) {
+    let a = cpu.stack_pop();
+    cpu.r.a = a;
+    cpu.r.zn(a);
+}
+
+fn op_plp(cpu: &mut CPU, src: u16) {
+    let p = cpu.stack_pop();
+    cpu.r.p = p;
+    cpu.r.p = p | 0b00100000;
+}
 
 #[cfg(test)]
 mod tests {
@@ -938,5 +967,27 @@ mod tests {
         let src = (ops[0x09].addr)(&mut cpu);
         (ops[0x09].code)(&mut cpu, src);
         assert_eq!(cpu.r.a, 0xFF);
+    }
+
+
+    #[test]
+    fn test_p() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(None);
+        cpu.r.a = 0xCC;
+
+        let src = (ops[0x48].addr)(&mut cpu);
+        (ops[0x48].code)(&mut cpu, src);
+        assert_eq!(cpu.stack_pop(), 0xCC);
+
+        cpu.r.a = 0xCC;
+        let src = (ops[0x08].addr)(&mut cpu);
+        (ops[0x08].code)(&mut cpu, src);
+        assert_eq!(cpu.stack_pop(), 0xFF);
+
+        cpu.r.a = 0x20;
+        let src = (ops[0xFD].addr)(&mut cpu);
+        (ops[0xFD].code)(&mut cpu, src);
+        assert_eq!(cpu.stack_pop(), 0xFD);
     }
 }
