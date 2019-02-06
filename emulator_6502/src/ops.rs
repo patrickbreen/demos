@@ -974,20 +974,27 @@ mod tests {
     fn test_p() {
         let ops = make_op_table();
         let mut cpu = make_cpu(None);
-        cpu.r.a = 0xCC;
 
+        cpu.r.a = 0xCC;
         let src = (ops[0x48].addr)(&mut cpu);
         (ops[0x48].code)(&mut cpu, src);
         assert_eq!(cpu.stack_pop(), 0xCC);
 
-        cpu.r.a = 0xCC;
+        cpu.r.p = 0xFF;
         let src = (ops[0x08].addr)(&mut cpu);
         (ops[0x08].code)(&mut cpu, src);
         assert_eq!(cpu.stack_pop(), 0xFF);
 
-        cpu.r.a = 0x20;
-        let src = (ops[0xFD].addr)(&mut cpu);
-        (ops[0xFD].code)(&mut cpu, src);
-        assert_eq!(cpu.stack_pop(), 0xFD);
+        cpu.r.a = 0x00;
+        cpu.stack_push(0xDD);
+        let src = (ops[0x68].addr)(&mut cpu);
+        (ops[0x68].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xDD);
+
+        cpu.r.p = 0x20;
+        cpu.stack_push(0xFD);
+        let src = (ops[0x28].addr)(&mut cpu);
+        (ops[0x28].code)(&mut cpu, src);
+        assert_eq!(cpu.r.p, 0xFD);
     }
 }
