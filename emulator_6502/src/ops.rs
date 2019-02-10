@@ -184,6 +184,13 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x08] = Instr::new(CPU::im,  op_php);
     ops[0x28] = Instr::new(CPU::im,  op_plp);
 
+    //rol
+    ops[0x2A] = Instr::new(CPU::im,  op_rola);
+    ops[0x26] = Instr::new(CPU::z,  op_rol);
+    ops[0x36] = Instr::new(CPU::zx,  op_rol);
+    ops[0x2E] = Instr::new(CPU::a,  op_rol);
+    ops[0x3E] = Instr::new(CPU::ax,  op_rol);
+
 
     ops
 }
@@ -470,11 +477,9 @@ fn op_lsra(cpu: &mut CPU, src: u16) {
 
 fn op_lsr(cpu: &mut CPU, src: u16) {
     let mut v = cpu.mmu.read(src as usize);
-    println!("src: {}, v: {}", src, v);
     let val = v & 0x01 != 0;
     cpu.r.set_flag('C', val);
     v = v >> 1;
-    println!("src: {}, v: {}", src, v);
     cpu.mmu.write(src as usize, v);
     cpu.r.zn(v);
 }
@@ -511,6 +516,22 @@ fn op_plp(cpu: &mut CPU, src: u16) {
     let p = cpu.stack_pop();
     cpu.r.p = p;
     cpu.r.p = p | 0b00100000;
+}
+
+fn op_rola(cpu: &mut CPU, src: u16) {
+    let v_old = cpu.r.a;
+    let v_new = ((v_old << 1) + cpu.r.get_flag('C') as u8) & 0xFF;
+    cpu.r.a = v_new;
+    cpu.r.set_flag('C', v_old & 0x80 != 0);
+    cpu.r.zn(v_new);
+}
+
+fn op_rol(cpu: &mut CPU, src: u16) {
+    let v_old = cpu.mmu.read(src as usize);
+    let v_new = ((v_old << 1) + cpu.r.get_flag('C') as u8) & 0xFF;
+    cpu.mmu.write(src as usize, v_new);
+    cpu.r.set_flag('C', v_old & 0x80 != 0);
+    cpu.r.zn(v_new);
 }
 
 #[cfg(test)]
@@ -996,5 +1017,27 @@ mod tests {
         let src = (ops[0x28].addr)(&mut cpu);
         (ops[0x28].code)(&mut cpu, src);
         assert_eq!(cpu.r.p, 0xFD);
+    }
+
+    #[test]
+    fn test_rol() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec!(0x00)));
+
+        cpu.r.a = 0xFF;
+        let src = (ops[0x2A].addr)(&mut cpu);
+        (ops[0x2A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xFE);
+        assert_eq!(cpu.r.get_flag('C'), true);
+
+        let src = (ops[0x2A].addr)(&mut cpu);
+        (ops[0x2A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xFD);
+        assert_eq!(cpu.r.get_flag('C'), true);
+
+        let src = (ops[0x26].addr)(&mut cpu);
+        (ops[0x26].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(0x00), 0x01);
+        assert_eq!(cpu.r.get_flag('C'), false);
     }
 }
