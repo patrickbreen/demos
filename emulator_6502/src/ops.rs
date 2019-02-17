@@ -1126,7 +1126,7 @@ mod tests {
     }
 
     #[test]
-    fn test_rti() {
+    fn test_rts() {
         let ops = make_op_table();
         let mut cpu = make_cpu(Some(vec!(0x00)));
 
