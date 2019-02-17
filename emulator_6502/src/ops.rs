@@ -198,6 +198,12 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x6E] = Instr::new(CPU::a,  op_ror);
     ops[0x7E] = Instr::new(CPU::ax,  op_ror);
 
+    //rti
+    ops[0x40] = Instr::new(CPU::im,  op_rti);
+
+    //rti
+    ops[0x60] = Instr::new(CPU::im,  op_rts);
+
 
     ops
 }
@@ -558,6 +564,15 @@ fn op_ror(cpu: &mut CPU, src: u16) {
 
     cpu.r.set_flag('C', v_old & 0x01 != 0);
     cpu.r.zn(v_new);
+}
+
+fn op_rti(cpu: &mut CPU, src: u16) {
+    cpu.r.p = cpu.stack_pop();
+    cpu.r.pc = cpu.stack_pop_word();
+}
+
+fn op_rts(cpu: &mut CPU, src: u16) {
+    cpu.r.pc = (cpu.stack_pop_word() + 1) & 0xFFFF;
 }
 
 #[cfg(test)]
@@ -1087,5 +1102,37 @@ mod tests {
         (ops[0x66].code)(&mut cpu, src);
         assert_eq!(cpu.mmu.read(0x00), 0x80);
         assert_eq!(cpu.r.get_flag('C'), false);
+    }
+
+
+    #[test]
+    fn test_rti() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec!(0x00)));
+
+        cpu.stack_push_word(0x1234);
+        cpu.stack_push(0xFD);
+
+        let src = (ops[0x40].addr)(&mut cpu);
+        (ops[0x40].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1234);
+        assert_eq!(cpu.r.get_flag('N'), true);
+        assert_eq!(cpu.r.get_flag('V'), true);
+        assert_eq!(cpu.r.get_flag('B'), true);
+        assert_eq!(cpu.r.get_flag('D'), true);
+        assert_eq!(cpu.r.get_flag('I'), true);
+        assert_eq!(cpu.r.get_flag('Z'), false);
+        assert_eq!(cpu.r.get_flag('C'), true);
+    }
+
+    #[test]
+    fn test_rti() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec!(0x00)));
+
+        cpu.stack_push_word(0x1234);
+        let src = (ops[0x60].addr)(&mut cpu);
+        (ops[0x60].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1235);
     }
 }
