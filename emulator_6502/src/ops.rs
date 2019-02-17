@@ -191,6 +191,13 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x2E] = Instr::new(CPU::a,  op_rol);
     ops[0x3E] = Instr::new(CPU::ax,  op_rol);
 
+    //ror
+    ops[0x6A] = Instr::new(CPU::im,  op_rora);
+    ops[0x66] = Instr::new(CPU::z,  op_ror);
+    ops[0x76] = Instr::new(CPU::zx,  op_ror);
+    ops[0x6E] = Instr::new(CPU::a,  op_ror);
+    ops[0x7E] = Instr::new(CPU::ax,  op_ror);
+
 
     ops
 }
@@ -530,7 +537,26 @@ fn op_rol(cpu: &mut CPU, src: u16) {
     let v_old = cpu.mmu.read(src as usize);
     let v_new = ((v_old << 1) + cpu.r.get_flag('C') as u8) & 0xFF;
     cpu.mmu.write(src as usize, v_new);
+
     cpu.r.set_flag('C', v_old & 0x80 != 0);
+    cpu.r.zn(v_new);
+}
+
+fn op_rora(cpu: &mut CPU, src: u16) {
+    let v_old = cpu.r.a;
+    let v_new = ((v_old >> 1) + (cpu.r.get_flag('C') as u8)* 0x80) & 0xFF;
+    cpu.r.a = v_new;
+
+    cpu.r.set_flag('C', v_old & 0x01 != 0);
+    cpu.r.zn(v_new);
+}
+
+fn op_ror(cpu: &mut CPU, src: u16) {
+    let v_old = cpu.mmu.read(src as usize);
+    let v_new = ((v_old >> 1) + (cpu.r.get_flag('C') as u8)* 0x80) & 0xFF;
+    cpu.mmu.write(src as usize, v_new);
+
+    cpu.r.set_flag('C', v_old & 0x01 != 0);
     cpu.r.zn(v_new);
 }
 
@@ -1038,6 +1064,28 @@ mod tests {
         let src = (ops[0x26].addr)(&mut cpu);
         (ops[0x26].code)(&mut cpu, src);
         assert_eq!(cpu.mmu.read(0x00), 0x01);
+        assert_eq!(cpu.r.get_flag('C'), false);
+    }
+
+    #[test]
+    fn test_ror() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec!(0x00)));
+
+        cpu.r.a = 0xFF;
+        let src = (ops[0x6A].addr)(&mut cpu);
+        (ops[0x6A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0x7F);
+        assert_eq!(cpu.r.get_flag('C'), true);
+
+        let src = (ops[0x6A].addr)(&mut cpu);
+        (ops[0x6A].code)(&mut cpu, src);
+        assert_eq!(cpu.r.a, 0xBF);
+        assert_eq!(cpu.r.get_flag('C'), true);
+
+        let src = (ops[0x66].addr)(&mut cpu);
+        (ops[0x66].code)(&mut cpu, src);
+        assert_eq!(cpu.mmu.read(0x00), 0x80);
         assert_eq!(cpu.r.get_flag('C'), false);
     }
 }
