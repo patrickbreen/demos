@@ -204,6 +204,39 @@ fn make_op_table() -> [Instr; 256] {
     //rti
     ops[0x60] = Instr::new(CPU::im,  op_rts);
 
+    //sbc
+    ops[0xE9] = Instr::new(CPU::im,  op_sbc);
+    ops[0xEB] = Instr::new(CPU::im,  op_sbc);
+    ops[0xE5] = Instr::new(CPU::z,  op_sbc);
+    ops[0xF5] = Instr::new(CPU::zx,  op_sbc);
+    ops[0xED] = Instr::new(CPU::a,  op_sbc);
+    ops[0xFD] = Instr::new(CPU::ax,  op_sbc);
+    ops[0xF9] = Instr::new(CPU::ay,  op_sbc);
+    ops[0xE1] = Instr::new(CPU::ix,  op_sbc);
+    ops[0xF1] = Instr::new(CPU::iy,  op_sbc);
+
+    //sta
+    ops[0x85] = Instr::new(CPU::z,  op_sta);
+    ops[0x95] = Instr::new(CPU::zx,  op_sta);
+    ops[0x8D] = Instr::new(CPU::a,  op_sta);
+    ops[0x9D] = Instr::new(CPU::ax,  op_sta);
+    ops[0x99] = Instr::new(CPU::ay,  op_sta);
+    ops[0x81] = Instr::new(CPU::ix,  op_sta);
+    ops[0x91] = Instr::new(CPU::iy,  op_sta);
+
+    //stx
+    ops[0x86] = Instr::new(CPU::z,  op_stx);
+    ops[0x96] = Instr::new(CPU::zy,  op_stx);
+    ops[0x8E] = Instr::new(CPU::a,  op_stx);
+
+    //sty
+    ops[0x84] = Instr::new(CPU::z,  op_sty);
+    ops[0x94] = Instr::new(CPU::zx,  op_sty);
+    ops[0x8C] = Instr::new(CPU::a,  op_sty);
+
+    //t
+    // ops[0xAA] = Instr::new(CPU::im,  op_t);
+
 
     ops
 }
@@ -573,6 +606,38 @@ fn op_rti(cpu: &mut CPU, src: u16) {
 
 fn op_rts(cpu: &mut CPU, src: u16) {
     cpu.r.pc = (cpu.stack_pop_word() + 1) & 0xFFFF;
+}
+
+fn op_sbc(cpu: &mut CPU, src: u16) {
+    let v1 = cpu.r.a as u16;
+    let mut r = 0;
+    if cpu.r.get_flag('D') {
+        let d1 = cpu.from_bcd(v1);
+        let d2 = cpu.from_bcd(src);
+        r = d1 - d2 - (!cpu.r.get_flag('C') as u16);
+    } else {
+        r = v1 - src - (!cpu.r.get_flag('C') as u16);
+        cpu.r.a = (r & 0xFF) as u8;
+    }
+
+    cpu.r.set_flag('C', r >= 0);
+    cpu.r.set_flag('V', ((v1 ^ src) & (v1 ^ r) & 0x80) != 0);
+    let a = cpu.r.a;
+    cpu.r.zn(a);
+}
+
+fn op_sta(cpu: &mut CPU, src: u16) {
+    cpu.mmu.write(src as usize, cpu.r.a);
+}
+fn op_stx(cpu: &mut CPU, src: u16) {
+    cpu.mmu.write(src as usize, cpu.r.x);
+}
+fn op_sty(cpu: &mut CPU, src: u16) {
+    cpu.mmu.write(src as usize, cpu.r.y);
+}
+
+//TODO
+fn op_t(cpu: &mut CPU, src: u16) {
 }
 
 #[cfg(test)]
@@ -1135,4 +1200,6 @@ mod tests {
         (ops[0x60].code)(&mut cpu, src);
         assert_eq!(cpu.r.pc, 0x1235);
     }
+
+
 }
