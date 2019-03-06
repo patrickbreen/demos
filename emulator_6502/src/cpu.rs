@@ -27,6 +27,7 @@ pub struct CPU {
 
     /// The registers of the CPU
     pub r: Registers,
+
 }
 
 impl CPU {
@@ -37,7 +38,6 @@ impl CPU {
         let mut cpu = CPU {
             mmu: mmu,
             r: Registers::new(),
-            // ops: [Instr::new(CPU::im, CPU::op_not_implemented); 256],
         };
         cpu
     }
@@ -46,7 +46,11 @@ impl CPU {
     // 2) decode using optable to give op function
     // 3) get argument using addressing mode if applicable
     // 4) execute op
-    fn step(&self) {
+    fn step(&mut self, ops: [Instr; 256]) {
+        let opcode = self.next_byte();
+
+        let src = (ops[opcode as usize].addr)(self);
+        (ops[opcode as usize].code)(self, src);
 
     }
 

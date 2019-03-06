@@ -235,7 +235,12 @@ fn make_op_table() -> [Instr; 256] {
     ops[0x8C] = Instr::new(CPU::a,  op_sty);
 
     //t
-    // ops[0xAA] = Instr::new(CPU::im,  op_t);
+    ops[0xAA] = Instr::new(CPU::im,  op_tax);
+    ops[0x8A] = Instr::new(CPU::im,  op_txa);
+    ops[0xa8] = Instr::new(CPU::im,  op_tay);
+    ops[0x98] = Instr::new(CPU::im,  op_tya);
+    ops[0x9A] = Instr::new(CPU::im,  op_txs);
+    ops[0xBA] = Instr::new(CPU::im,  op_tsx);
 
 
     ops
@@ -636,8 +641,40 @@ fn op_sty(cpu: &mut CPU, src: u16) {
     cpu.mmu.write(src as usize, cpu.r.y);
 }
 
-//TODO
-fn op_t(cpu: &mut CPU, src: u16) {
+// transfers
+fn op_tax(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.a;
+    cpu.r.x = v;
+    cpu.r.zn(v);
+}
+
+fn op_txa(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.x;
+    cpu.r.a = v;
+    cpu.r.zn(v);
+}
+
+fn op_tay(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.a;
+    cpu.r.y = v;
+    cpu.r.zn(v);
+}
+
+fn op_tya(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.y;
+    cpu.r.a = v;
+    cpu.r.zn(v);
+}
+
+fn op_txs(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.x as u16;
+    cpu.r.s = v;
+}
+
+fn op_tsx(cpu: &mut CPU, _src: u16) {
+    let v = cpu.r.s as u8;
+    cpu.r.x = v;
+    cpu.r.zn(v);
 }
 
 #[cfg(test)]
