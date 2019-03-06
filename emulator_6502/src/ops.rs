@@ -21,7 +21,7 @@ fn no_arg(cpu: &mut CPU) -> u16 {
 }
 
 
-fn make_op_table() -> [Instr; 256] {
+pub fn make_op_table() -> [Instr; 256] {
     let mut ops = [Instr::new(CPU::im, op_not_implemented); 256];
 
     // set up op table
@@ -127,8 +127,8 @@ fn make_op_table() -> [Instr; 256] {
     ops[0xC8] = Instr::new(CPU::im,  op_iny);
 
     //jmp
-    ops[0x4C] = Instr::new(CPU::im,  op_jmp);
-    ops[0x6C] = Instr::new(CPU::i,  op_jmp);
+    ops[0x4C] = Instr::new(CPU::a_a,  op_jmp);
+    ops[0x6C] = Instr::new(CPU::i_a,  op_jmp);
 
     //ld
     ops[0xA9] = Instr::new(CPU::im,  op_lda);

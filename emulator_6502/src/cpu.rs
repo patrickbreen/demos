@@ -42,11 +42,11 @@ impl CPU {
         cpu
     }
 
-    // 1) read a byte (instruction)
+    // 1) read the byte pointed to by the program counter (instruction)
     // 2) decode using optable to give op function
     // 3) get argument using addressing mode if applicable
     // 4) execute op
-    fn step(&mut self, ops: [Instr; 256]) {
+    pub fn step(&mut self, ops: [Instr; 256]) {
         let opcode = self.next_byte();
 
         let src = (ops[opcode as usize].addr)(self);
@@ -130,7 +130,7 @@ impl CPU {
     }
 
     // absolute addressing
-    fn a_a(&mut self) -> u16 {
+    pub fn a_a(&mut self) -> u16 {
         self.next_word()
     }
 
@@ -157,7 +157,7 @@ impl CPU {
     }
 
     // indirect addressing
-    fn i_a(&mut self) -> u16 {
+    pub fn i_a(&mut self) -> u16 {
         let i = self.next_word();
         // Doesn't carry, so if the low byte is in the XXFF position
         // Then the high byte will be XX00 rather than XY00
