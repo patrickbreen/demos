@@ -117,15 +117,15 @@ impl CPU {
     // Note that the width of the address bus on the target CPU (6502) is actually 16 bits.
 
     // zero page addressing
-    fn z_a(&mut self) -> u16 {
+    pub fn z_a(&mut self) -> u16 {
         self.next_byte() as u16
     }
 
-    fn zx_a(&mut self) -> u16 {
+    pub fn zx_a(&mut self) -> u16 {
         ((self.next_byte() + self.r.x) & 0xFF) as u16
     }
 
-    fn zy_a(&mut self) -> u16 {
+    pub fn zy_a(&mut self) -> u16 {
         ((self.next_byte() + self.r.y) & 0xFF) as u16
     }
 
@@ -134,7 +134,7 @@ impl CPU {
         self.next_word()
     }
 
-    fn ax_a(&mut self) -> u16 {
+    pub fn ax_a(&mut self) -> u16 {
         let op = self.next_word();
         let a = op + (self.r.x as u16);
 
@@ -145,7 +145,7 @@ impl CPU {
         a & 0xFFFF
     }
 
-    fn ay_a(&mut self) -> u16 {
+    pub fn ay_a(&mut self) -> u16 {
         let op = self.next_word();
         let a = op + (self.r.y as u16);
 
@@ -173,14 +173,14 @@ impl CPU {
     }
 
 
-    fn ix_a(&mut self) -> u16 {
+    pub fn ix_a(&mut self) -> u16 {
         let i = (self.next_byte() + self.r.x) & 0xFF;
         let u = self.mmu.read(((i + 1) & 0xff) as usize);
         let l = self.mmu.read(i as usize);
         (((u as u16) << 8) + l as u16) & 0xffff
     }
 
-    fn iy_a(&mut self) -> u16 {
+    pub fn iy_a(&mut self) -> u16 {
         let i = self.next_byte();
         let u = self.mmu.read((i as usize + 1) & 0xFF);
         let l = self.mmu.read(i as usize);

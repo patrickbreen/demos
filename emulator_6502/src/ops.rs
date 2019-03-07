@@ -46,11 +46,11 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0x31] = Instr::new(CPU::iy, op_and);
 
     // asl
-    ops[0x0a] = Instr::new(CPU::im, op_asl_acc);
-    ops[0x06] = Instr::new(CPU::z,  op_asl);
-    ops[0x16] = Instr::new(CPU::zx, op_asl);
-    ops[0x0e] = Instr::new(CPU::a,  op_asl);
-    ops[0x1e] = Instr::new(CPU::ax, op_asl);
+    ops[0x0a] = Instr::new(no_arg, op_asl_acc);
+    ops[0x06] = Instr::new(CPU::z_a,  op_asl);
+    ops[0x16] = Instr::new(CPU::zx_a, op_asl);
+    ops[0x0e] = Instr::new(CPU::a_a,  op_asl);
+    ops[0x1e] = Instr::new(CPU::ax_a, op_asl);
 
     // branching
     ops[0x10] = Instr::new(CPU::im, op_bpl);
@@ -67,7 +67,7 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0x2C] = Instr::new(CPU::a,  op_bit);
 
     // brk
-    ops[0x00] = Instr::new(CPU::im, op_brk);
+    ops[0x00] = Instr::new(no_arg, op_brk);
 
     // cp
     ops[0xC9] = Instr::new(CPU::im, op_cmp);
@@ -88,13 +88,13 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0xCC] = Instr::new(CPU::a,  op_cpy);
 
     // dec
-    ops[0xC6] = Instr::new(CPU::z,  op_dec);
-    ops[0xD6] = Instr::new(CPU::zx, op_dec);
-    ops[0xCE] = Instr::new(CPU::a,  op_dec);
-    ops[0xDE] = Instr::new(CPU::ax, op_dec);
+    ops[0xC6] = Instr::new(CPU::z_a,  op_dec);
+    ops[0xD6] = Instr::new(CPU::zx_a, op_dec);
+    ops[0xCE] = Instr::new(CPU::a_a,  op_dec);
+    ops[0xDE] = Instr::new(CPU::ax_a, op_dec);
 
-    ops[0xCA] = Instr::new(CPU::im,  op_dex);
-    ops[0x88] = Instr::new(CPU::im,  op_dey);
+    ops[0xCA] = Instr::new(no_arg,  op_dex);
+    ops[0x88] = Instr::new(no_arg,  op_dey);
 
     //eor
     ops[0x49] = Instr::new(CPU::im,  op_eor);
@@ -117,10 +117,10 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0xF8] = Instr::new(no_arg,  op_sed);
 
     //inc
-    ops[0xE6] = Instr::new(CPU::z,  op_inc);
-    ops[0xF6] = Instr::new(CPU::zx,  op_inc);
-    ops[0xEE] = Instr::new(CPU::a,  op_inc);
-    ops[0xFE] = Instr::new(CPU::ax,  op_inc);
+    ops[0xE6] = Instr::new(CPU::z_a,  op_inc);
+    ops[0xF6] = Instr::new(CPU::zx_a,  op_inc);
+    ops[0xEE] = Instr::new(CPU::a_a,  op_inc);
+    ops[0xFE] = Instr::new(CPU::ax_a,  op_inc);
 
     ops[0xE8] = Instr::new(CPU::im,  op_inx);
 
@@ -129,6 +129,9 @@ pub fn make_op_table() -> [Instr; 256] {
     //jmp
     ops[0x4C] = Instr::new(CPU::a_a,  op_jmp);
     ops[0x6C] = Instr::new(CPU::i_a,  op_jmp);
+
+    //jsr
+    ops[0x20] = Instr::new(CPU::a_a,  op_jsr);
 
     //ld
     ops[0xA9] = Instr::new(CPU::im,  op_lda);
@@ -152,14 +155,15 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0xAC] = Instr::new(CPU::a,  op_ldy);
     ops[0xBC] = Instr::new(CPU::ax,  op_ldy);
 
-    ops[0x4A] = Instr::new(CPU::im,  op_lsra);
-    ops[0x46] = Instr::new(CPU::z,  op_lsr);
-    ops[0x56] = Instr::new(CPU::zx,  op_lsr);
-    ops[0x4E] = Instr::new(CPU::a,  op_lsr);
-    ops[0x5E] = Instr::new(CPU::ax,  op_lsr);
+    //lsr
+    ops[0x4A] = Instr::new(no_arg,  op_lsra);
+    ops[0x46] = Instr::new(CPU::z_a,  op_lsr);
+    ops[0x56] = Instr::new(CPU::zx_a,  op_lsr);
+    ops[0x4E] = Instr::new(CPU::a_a,  op_lsr);
+    ops[0x5E] = Instr::new(CPU::ax_a,  op_lsr);
 
     //nop
-    ops[0x1A] = Instr::new(CPU::im,  op_nop);
+    ops[0x1A] = Instr::new(no_arg,  op_nop);
     ops[0x3A] = Instr::new(CPU::im,  op_nop);
     ops[0x5A] = Instr::new(CPU::im,  op_nop);
     ops[0x7A] = Instr::new(CPU::im,  op_nop);
@@ -179,30 +183,30 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0x11] = Instr::new(CPU::iy,  op_ora);
 
     //p
-    ops[0x48] = Instr::new(CPU::im,  op_pha);
-    ops[0x68] = Instr::new(CPU::im,  op_pla);
-    ops[0x08] = Instr::new(CPU::im,  op_php);
-    ops[0x28] = Instr::new(CPU::im,  op_plp);
+    ops[0x48] = Instr::new(no_arg,  op_pha);
+    ops[0x68] = Instr::new(no_arg,  op_pla);
+    ops[0x08] = Instr::new(no_arg,  op_php);
+    ops[0x28] = Instr::new(no_arg,  op_plp);
 
     //rol
-    ops[0x2A] = Instr::new(CPU::im,  op_rola);
-    ops[0x26] = Instr::new(CPU::z,  op_rol);
-    ops[0x36] = Instr::new(CPU::zx,  op_rol);
-    ops[0x2E] = Instr::new(CPU::a,  op_rol);
-    ops[0x3E] = Instr::new(CPU::ax,  op_rol);
+    ops[0x2A] = Instr::new(no_arg,  op_rola);
+    ops[0x26] = Instr::new(CPU::z_a,  op_rol);
+    ops[0x36] = Instr::new(CPU::zx_a,  op_rol);
+    ops[0x2E] = Instr::new(CPU::a_a,  op_rol);
+    ops[0x3E] = Instr::new(CPU::ax_a,  op_rol);
 
     //ror
-    ops[0x6A] = Instr::new(CPU::im,  op_rora);
-    ops[0x66] = Instr::new(CPU::z,  op_ror);
-    ops[0x76] = Instr::new(CPU::zx,  op_ror);
-    ops[0x6E] = Instr::new(CPU::a,  op_ror);
-    ops[0x7E] = Instr::new(CPU::ax,  op_ror);
+    ops[0x6A] = Instr::new(no_arg,  op_rora);
+    ops[0x66] = Instr::new(CPU::z_a,  op_ror);
+    ops[0x76] = Instr::new(CPU::zx_a,  op_ror);
+    ops[0x6E] = Instr::new(CPU::a_a,  op_ror);
+    ops[0x7E] = Instr::new(CPU::ax_a,  op_ror);
 
     //rti
-    ops[0x40] = Instr::new(CPU::im,  op_rti);
+    ops[0x40] = Instr::new(no_arg,  op_rti);
 
-    //rti
-    ops[0x60] = Instr::new(CPU::im,  op_rts);
+    //rts
+    ops[0x60] = Instr::new(no_arg,  op_rts);
 
     //sbc
     ops[0xE9] = Instr::new(CPU::im,  op_sbc);
@@ -216,31 +220,31 @@ pub fn make_op_table() -> [Instr; 256] {
     ops[0xF1] = Instr::new(CPU::iy,  op_sbc);
 
     //sta
-    ops[0x85] = Instr::new(CPU::z,  op_sta);
-    ops[0x95] = Instr::new(CPU::zx,  op_sta);
-    ops[0x8D] = Instr::new(CPU::a,  op_sta);
-    ops[0x9D] = Instr::new(CPU::ax,  op_sta);
-    ops[0x99] = Instr::new(CPU::ay,  op_sta);
-    ops[0x81] = Instr::new(CPU::ix,  op_sta);
-    ops[0x91] = Instr::new(CPU::iy,  op_sta);
+    ops[0x85] = Instr::new(CPU::z_a,  op_sta);
+    ops[0x95] = Instr::new(CPU::zx_a,  op_sta);
+    ops[0x8D] = Instr::new(CPU::a_a,  op_sta);
+    ops[0x9D] = Instr::new(CPU::ax_a,  op_sta);
+    ops[0x99] = Instr::new(CPU::ay_a,  op_sta);
+    ops[0x81] = Instr::new(CPU::ix_a,  op_sta);
+    ops[0x91] = Instr::new(CPU::iy_a,  op_sta);
 
     //stx
-    ops[0x86] = Instr::new(CPU::z,  op_stx);
-    ops[0x96] = Instr::new(CPU::zy,  op_stx);
-    ops[0x8E] = Instr::new(CPU::a,  op_stx);
+    ops[0x86] = Instr::new(CPU::z_a,  op_stx);
+    ops[0x96] = Instr::new(CPU::zy_a,  op_stx);
+    ops[0x8E] = Instr::new(CPU::a_a,  op_stx);
 
     //sty
-    ops[0x84] = Instr::new(CPU::z,  op_sty);
-    ops[0x94] = Instr::new(CPU::zx,  op_sty);
-    ops[0x8C] = Instr::new(CPU::a,  op_sty);
+    ops[0x84] = Instr::new(CPU::z_a,  op_sty);
+    ops[0x94] = Instr::new(CPU::zx_a,  op_sty);
+    ops[0x8C] = Instr::new(CPU::a_a,  op_sty);
 
     //t
-    ops[0xAA] = Instr::new(CPU::im,  op_tax);
-    ops[0x8A] = Instr::new(CPU::im,  op_txa);
-    ops[0xa8] = Instr::new(CPU::im,  op_tay);
-    ops[0x98] = Instr::new(CPU::im,  op_tya);
-    ops[0x9A] = Instr::new(CPU::im,  op_txs);
-    ops[0xBA] = Instr::new(CPU::im,  op_tsx);
+    ops[0xAA] = Instr::new(no_arg,  op_tax);
+    ops[0x8A] = Instr::new(no_arg,  op_txa);
+    ops[0xa8] = Instr::new(no_arg,  op_tay);
+    ops[0x98] = Instr::new(no_arg,  op_tya);
+    ops[0x9A] = Instr::new(no_arg,  op_txs);
+    ops[0xBA] = Instr::new(no_arg,  op_tsx);
 
 
     ops
@@ -500,6 +504,12 @@ fn op_iny(cpu: &mut CPU, src: u16) {
 }
 
 fn op_jmp(cpu: &mut CPU, src: u16) {
+    cpu.r.pc = src;
+}
+
+fn op_jsr(cpu: &mut CPU, src: u16) {
+    let pc = cpu.r.pc-1;
+    cpu.stack_push_word(pc);
     cpu.r.pc = src;
 }
 
@@ -768,16 +778,14 @@ mod tests {
         let mut cpu = make_cpu(Some(vec![0x00]));
 
         cpu.r.a = 1;
-        let src = (ops[0x0a].addr)(&mut cpu);
-        (ops[0x0a].code)(&mut cpu, src);
+        let src = (ops[0x0A].addr)(&mut cpu);
+        (ops[0x0A].code)(&mut cpu, src);
         assert_eq!(cpu.r.a, 2);
 
-        // TODO not sure I implemented this correctly...
-        cpu.mmu.write(0, 1);
-        cpu.mmu.write(1, 4);
+        cpu.mmu.write(0, 4);
         let src = (ops[0x06].addr)(&mut cpu);
         (ops[0x06].code)(&mut cpu, src);
-        assert_eq!(cpu.mmu.read(1), 8);
+        assert_eq!(cpu.mmu.read(0), 8);
     }
 
     #[test]
@@ -1043,25 +1051,24 @@ mod tests {
     #[test]
     fn test_jmp() {
         let ops = make_op_table();
-        let mut cpu = make_cpu(
-            Some(vec![
-                0x02, 0x01,
-                0x02, 0x02,
-                0x01, 0x01,
-                0x01, 0x01,
-            ])
-        );
+        let mut cpu = make_cpu(Some(vec![0x00, 0x10]));
         let src = (ops[0x4C].addr)(&mut cpu);
         (ops[0x4C].code)(&mut cpu, src);
-        assert_eq!(cpu.r.pc, 0x02);
-
-        cpu.r.pc = 0x1000;
-        cpu.mmu.write(0x102, 0x01);
-        cpu.mmu.write(0x01, 0x03);
+        assert_eq!(cpu.r.pc, 0x1000);
 
         let src = (ops[0x6C].addr)(&mut cpu);
         (ops[0x6C].code)(&mut cpu, src);
-        assert_eq!(cpu.r.pc, 0x03);
+        assert_eq!(cpu.r.pc, 0x1000);
+    }
+
+    #[test]
+    fn test_jsr() {
+        let ops = make_op_table();
+        let mut cpu = make_cpu(Some(vec![0x00, 0x10]));
+        let src = (ops[0x20].addr)(&mut cpu);
+        (ops[0x20].code)(&mut cpu, src);
+        assert_eq!(cpu.r.pc, 0x1000);
+        assert_eq!(cpu.stack_pop_word(), 0x1001);
     }
 
     #[test]
@@ -1108,10 +1115,9 @@ mod tests {
         assert_eq!(cpu.r.get_flag('C'), true);
 
         cpu.mmu.write(0x00, 0x02);
-        cpu.mmu.write(0x02, 0x02);
         let src = (ops[0x46].addr)(&mut cpu);
         (ops[0x46].code)(&mut cpu, src);
-        assert_eq!(cpu.mmu.read(0x02), 0x01);
+        assert_eq!(cpu.mmu.read(0x00), 0x01);
     }
 
 

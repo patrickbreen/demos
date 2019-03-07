@@ -1,9 +1,3 @@
-# TODO
-
-Addressing was implemented incorrectly
-- use https://github.com/docmarionum1/py65emu/blob/master/py65emu/cpu.py
-- and make sure you keep track of addressing from addresses or values
-
 
 ## Build and Run
 
