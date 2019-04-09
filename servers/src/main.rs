@@ -71,7 +71,6 @@ fn main() {
     let mut addrs_iter = host.to_socket_addrs().unwrap();
     let addr = addrs_iter.next().unwrap();
 
-    // TODO: on all servers implement timeout. If no activity for x seconds, close the stream
     let time_out = 3;
 
 
@@ -79,17 +78,4 @@ fn main() {
 
     // --- HTTP servers ---
     http_simple(addr);
-    // http_server(addr);
-
-    // --- FTP servers ---
-    // TODO: FTP client/server
-    // TODO: tFTP client/server
-
-    // --- simple servers and clients ---
-    // netcat_client(addr);
-    // echo_server(addr);
-
-    // --- SSH stuff ---
-    // ssh_client();
-    // ssh_server();
 }
