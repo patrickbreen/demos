@@ -18,128 +18,8 @@ macro_rules! return_match {
 // uses a massive branching statement
 pub fn get_opcode_and_arguments(line: String, line_number: u16) -> (u8, String) {
 
-
-    // rels (assume they are all labeled... for now)
-    return_match!(r"^bvc\s+(w{1, 20})$", 0x50, &line);
-    return_match!(r"^bvs\s+(w{1, 20})$", 0x90, &line);
-    return_match!(r"^bne\s+(w{1, 20})$", 0xd0, &line);
-    return_match!(r"^beq\s+(w{1, 20})$", 0xf0, &line);
-
-    // immediates
-    return_match!(r"^ldy\s+#\$([0-9a-f]{2})", 0xa0, &line);
-    return_match!(r"^ldx\s+#\$([0-9a-f]{2})", 0xa2, &line);
-    return_match!(r"^cpy\s+#\$([0-9a-f]{2})", 0xc0, &line);
-    return_match!(r"^ora\s+#\$([0-9a-f]{2})", 0x09, &line);
-    return_match!(r"^and\s+#\$([0-9a-f]{2})", 0x29, &line);
-    return_match!(r"^eor\s+#\$([0-9a-f]{2})", 0x49, &line);
-    return_match!(r"^adc\s+#\$([0-9a-f]{2})", 0x69, &line);
-    return_match!(r"^lda\s+#\$([0-9a-f]{2})", 0xa9, &line);
-    return_match!(r"^cmp\s+#\$([0-9a-f]{2})", 0xc9, &line);
-    return_match!(r"^sbc\s+#\$([0-9a-f]{2})", 0xe9, &line);
-
-    // indirect
-    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),x\)$", 0x01, &line);
-    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),y\)$", 0x11, &line);
-    return_match!(r"^and\s+\(\$([0-9a-f]{2}),x\)$", 0x21, &line);
-    return_match!(r"^and\s+\(\$([0-9a-f]{2}),y\)$", 0x31, &line);
-    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),x\)$", 0x41, &line);
-    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),y\)$", 0x51, &line);
-    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),x\)$", 0x61, &line);
-    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),y\)$", 0x71, &line);
-    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),x\)$", 0x81, &line);
-    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),y\)$", 0x91, &line);
-    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),x\)$", 0xa1, &line);
-    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),y\)$", 0xb1, &line);
-    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),x\)$", 0xc1, &line);
-    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),y\)$", 0xd1, &line);
-    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),x\)$", 0xe1, &line);
-    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),y\)$", 0xf1, &line);
-    return_match!(r"^jmp\s+\(\$([0-9a-f]{4})\)$",   0x6c, &line);
-
-    // zpgs
-    let re_ora_zpg =    Regex::new(r"^ora\s+\$([0-9a-f]{2})$").unwrap();
-    let re_ora_zpg_x =  Regex::new(r"^ora\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_and_zpg =    Regex::new(r"^and\s+\$([0-9a-f]{2})$").unwrap();
-    let re_and_zpg_x =  Regex::new(r"^and\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_eor_zpg =    Regex::new(r"^eor\s+\$([0-9a-f]{2})$").unwrap();
-    let re_eor_zpg_x =  Regex::new(r"^eor\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_adc_zpg =    Regex::new(r"^adc\s+\$([0-9a-f]{2})$").unwrap();
-    let re_adc_zpg_x =  Regex::new(r"^adc\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_sta_zpg =    Regex::new(r"^sta\s+\$([0-9a-f]{2})$").unwrap();
-    let re_sta_zpg_x =  Regex::new(r"^sta\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_lda_zpg =    Regex::new(r"^lda\s+\$([0-9a-f]{2})$").unwrap();
-    let re_lda_zpg_x =  Regex::new(r"^lda\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_cmp_zpg =    Regex::new(r"^cmp\s+\$([0-9a-f]{2})$").unwrap();
-    let re_cmp_zpg_x =  Regex::new(r"^cmp\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_sbc_zpg =    Regex::new(r"^sbc\s+\$([0-9a-f]{2})$").unwrap();
-    let re_sbc_zpg_x =  Regex::new(r"^sbc\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_asl_zpg =    Regex::new(r"^asl\s+\$([0-9a-f]{2})$").unwrap();
-    let re_asl_zpg_x =  Regex::new(r"^asl\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_rol_zpg =    Regex::new(r"^rol\s+\$([0-9a-f]{2})$").unwrap();
-    let re_rol_zpg_x =  Regex::new(r"^rol\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_lsr_zpg =    Regex::new(r"^lsr\s+\$([0-9a-f]{2})$").unwrap();
-    let re_lsr_zpg_x =  Regex::new(r"^lsr\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_ror_zpg =    Regex::new(r"^ror\s+\$([0-9a-f]{2})$").unwrap();
-    let re_ror_zpg_x =  Regex::new(r"^ror\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_stx_zpg =    Regex::new(r"^stx\s+\$([0-9a-f]{2})$").unwrap();
-    let re_stx_zpg_y =  Regex::new(r"^stx\s+\$([0-9a-f]{2}),y$").unwrap();
-    let re_ldx_zpg =    Regex::new(r"^ldx\s+\$([0-9a-f]{2})$").unwrap();
-    let re_ldx_zpg_y =  Regex::new(r"^ldx\s+\$([0-9a-f]{2}),y$").unwrap();
-    let re_dec_zpg =    Regex::new(r"^dec\s+\$([0-9a-f]{2})$").unwrap();
-    let re_dec_zpg_x =  Regex::new(r"^dec\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_inc_zpg =    Regex::new(r"^inc\s+\$([0-9a-f]{2})$").unwrap();
-    let re_inc_zpg_x =  Regex::new(r"^inc\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_sty_zpg =    Regex::new(r"^sty\s+\$([0-9a-f]{2})$").unwrap();
-    let re_sty_zpg_x =  Regex::new(r"^sty\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_ldy_zpg =    Regex::new(r"^ldy\s+\$([0-9a-f]{2})$").unwrap();
-    let re_ldy_zpg_x =  Regex::new(r"^ldy\s+\$([0-9a-f]{2}),x$").unwrap();
-    let re_bit_zpg =    Regex::new(r"^bit\s+\$([0-9a-f]{2})$").unwrap();
-    let re_cpy_zpg =    Regex::new(r"^cpy\s+\$([0-9a-f]{2})$").unwrap();
-    let re_cpx_zpg =    Regex::new(r"^cpy\s+\$([0-9a-f]{2})$").unwrap();
-    
-    // absolutes
-    let re_ora_abs =    Regex::new(r"^ora\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ora_abs_x =  Regex::new(r"^ora\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_and_abs =    Regex::new(r"^and\s+\$([0-9a-f]{4})$").unwrap();
-    let re_and_abs_x =  Regex::new(r"^and\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_eor_abs =    Regex::new(r"^eor\s+\$([0-9a-f]{4})$").unwrap();
-    let re_eor_abs_x =  Regex::new(r"^eor\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_adc_abs =    Regex::new(r"^adc\s+\$([0-9a-f]{4})$").unwrap();
-    let re_adc_abs_x =  Regex::new(r"^adc\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_sta_abs =    Regex::new(r"^sta\s+\$([0-9a-f]{4})$").unwrap();
-    let re_sta_abs_x =  Regex::new(r"^sta\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_lda_abs =    Regex::new(r"^lda\s+\$([0-9a-f]{4})$").unwrap();
-    let re_lda_abs_x =  Regex::new(r"^lda\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_cmp_abs =    Regex::new(r"^cmp\s+\$([0-9a-f]{4})$").unwrap();
-    let re_cmp_abs_x =  Regex::new(r"^cmp\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_sbc_abs =    Regex::new(r"^sbc\s+\$([0-9a-f]{4})$").unwrap();
-    let re_sbc_abs_x =  Regex::new(r"^sbc\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_asl_abs =    Regex::new(r"^asl\s+\$([0-9a-f]{4})$").unwrap();
-    let re_asl_abs_x =  Regex::new(r"^asl\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_rol_abs =    Regex::new(r"^rol\s+\$([0-9a-f]{4})$").unwrap();
-    let re_rol_abs_x =  Regex::new(r"^rol\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_lsr_abs =    Regex::new(r"^lsr\s+\$([0-9a-f]{4})$").unwrap();
-    let re_lsr_abs_x =  Regex::new(r"^lsr\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_ror_abs =    Regex::new(r"^ror\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ror_abs_x =  Regex::new(r"^ror\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_stx_abs =    Regex::new(r"^stx\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ldx_abs =    Regex::new(r"^ldx\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ldx_abs_y =  Regex::new(r"^ldx\s+\$([0-9a-f]{4}),y$").unwrap();
-    let re_dec_abs =    Regex::new(r"^dec\s+\$([0-9a-f]{4})$").unwrap();
-    let re_dec_abs_x =  Regex::new(r"^dec\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_inc_abs =    Regex::new(r"^inc\s+\$([0-9a-f]{4})$").unwrap();
-    let re_inc_abs_x =  Regex::new(r"^inc\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_sty_abs =    Regex::new(r"^sty\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ldy_abs =    Regex::new(r"^ldy\s+\$([0-9a-f]{4})$").unwrap();
-    let re_ldy_abs_x =  Regex::new(r"^ldy\s+\$([0-9a-f]{4}),x$").unwrap();
-    let re_bit_abs =    Regex::new(r"^bit\s+\$([0-9a-f]{4})$").unwrap();
-    let re_cpy_abs =    Regex::new(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
-    let re_cpx_abs =    Regex::new(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
-
-    let re_jmp_abs =    Regex::new(r"^jmp\s+\$([0-9a-f]{4})$").unwrap();
-
-
     // all the impls and As
+    // TODO this block needs to be fixed to use the macro
     if line      == "brk" { return (0x00, "".to_string()); }
     else if line == "rti" { return (0x40, "".to_string()); }
     else if line == "rts" { return (0x60, "".to_string()); }
@@ -171,98 +51,128 @@ pub fn get_opcode_and_arguments(line: String, line_number: u16) -> (u8, String) 
     else if line == "lsr a" { return (0x4a, "".to_string()); }
     else if line == "ror a" { return (0x6a, "".to_string()); }
 
-    // all the rels 
 
-    // all the indirect
-    else if re_ora_ind_x.is_match(&line) {
-        let caps =  re_ora_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x01, caps[0][1].to_string());
-    }
-    else if re_ora_ind_y.is_match(&line) {
-        let caps =  re_ora_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x11, caps[0][1].to_string());
-    }
-    else if re_and_ind_x.is_match(&line) {
-        let caps =  re_and_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x21, caps[0][1].to_string());
-    }
-    else if re_and_ind_y.is_match(&line) {
-        let caps =  re_and_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x31, caps[0][1].to_string());
-    }
-    else if re_eor_ind_x.is_match(&line) {
-        let caps =  re_eor_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x41, caps[0][1].to_string());
-    }
-    else if re_eor_ind_y.is_match(&line) {
-        let caps =  re_eor_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x51, caps[0][1].to_string());
-    }
-    else if re_adc_ind_x.is_match(&line) {
-        let caps =  re_adc_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x61, caps[0][1].to_string());
-    }
-    else if re_adc_ind_y.is_match(&line) {
-        let caps =  re_adc_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x71, caps[0][1].to_string());
-    }
-    else if re_sta_ind_x.is_match(&line) {
-        let caps =  re_sta_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x81, caps[0][1].to_string());
-    }
-    else if re_sta_ind_y.is_match(&line) {
-        let caps =  re_sta_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x91, caps[0][1].to_string());
-    }
-    else if re_lda_ind_x.is_match(&line) {
-        let caps =  re_lda_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xa1, caps[0][1].to_string());
-    }
-    else if re_lda_ind_y.is_match(&line) {
-        let caps =  re_lda_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xb1, caps[0][1].to_string());
-    }
-    else if re_cmp_ind_x.is_match(&line) {
-        let caps =  re_cmp_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xc1, caps[0][1].to_string());
-    }
-    else if re_cmp_ind_y.is_match(&line) {
-        let caps =  re_cmp_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xd1, caps[0][1].to_string());
-    }
-    else if re_sbc_ind_x.is_match(&line) {
-        let caps =  re_sbc_ind_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xe1, caps[0][1].to_string());
-    }
-    else if re_sbc_ind_y.is_match(&line) {
-        let caps =  re_sbc_ind_y.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0xf1, caps[0][1].to_string());
-    }
-    else if re_jmp_ind.is_match(&line) {
-        let caps =  re_jmp_ind.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x6c, caps[0][1].to_string());
-    }
+    // rels (assume they are all labeled... for now)
+    return_match!(r"^bvc\s+(\w{1, 20})$", 0x50, &line);
+    return_match!(r"^bvs\s+(\w{1, 20})$", 0x90, &line);
+    return_match!(r"^bne\s+(\w{1, 20})$", 0xd0, &line);
+    return_match!(r"^beq\s+(\w{1, 20})$", 0xf0, &line);
 
-    // all the zpgs
-    else if re_ora_zpg.is_match(&line) {
-        let caps =  re_ora_zpg.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x05, caps[0][1].to_string());
-    }
-    else if re_ora_zpg_x.is_match(&line) {
-        let caps =  re_ora_zpg_x.captures_iter(&line).collect::<Vec<Captures>>();
-        return (0x15, caps[0][1].to_string());
-    }
+    // immediates
+    return_match!(r"^ldy\s+#\$([0-9a-f]{2})", 0xa0, &line);
+    return_match!(r"^ldx\s+#\$([0-9a-f]{2})", 0xa2, &line);
+    return_match!(r"^cpy\s+#\$([0-9a-f]{2})", 0xc0, &line);
+    return_match!(r"^ora\s+#\$([0-9a-f]{2})", 0x09, &line);
+    return_match!(r"^and\s+#\$([0-9a-f]{2})", 0x29, &line);
+    return_match!(r"^eor\s+#\$([0-9a-f]{2})", 0x49, &line);
+    return_match!(r"^adc\s+#\$([0-9a-f]{2})", 0x69, &line);
+    return_match!(r"^lda\s+#\$([0-9a-f]{2})", 0xa9, &line);
+    return_match!(r"^cmp\s+#\$([0-9a-f]{2})", 0xc9, &line);
+    return_match!(r"^sbc\s+#\$([0-9a-f]{2})", 0xe9, &line);
 
-    // all the absolutes
+    // indirect
+    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),x\)$", 0x01, &line);
+    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),y\)$", 0x11, &line);
+    return_match!(r"^and\s+\(\$([0-9a-f]{2}),x\)$", 0x21, &line);
+    return_match!(r"^and\s+\(\$([0-9a-f]{2}),y\)$", 0x31, &line);
+    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),x\)$", 0x41, &line);
+    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),y\)$", 0x51, &line);
+    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),x\)$", 0x61, &line);
+    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),y\)$", 0x71, &line);
+    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),x\)$", 0x81, &line);
+    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),y\)$", 0x91, &line);
+    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),x\)$", 0xa1, &line);
+    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),y\)$", 0xb1, &line);
+    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),x\)$", 0xc1, &line);
+    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),y\)$", 0xd1, &line);
+    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),x\)$", 0xe1, &line);
+    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),y\)$", 0xf1, &line);
+
+    return_match!(r"^jmp\s+\(\$([0-9a-f]{4})\)$",   0x6c, &line);
+
+    // zpgs
+    return_match!(r"^ora\s+\$([0-9a-f]{2})$",     0x05, &line);
+    return_match!(r"^ora\s+\$([0-9a-f]{2}),x$",   0x15, &line);
+    return_match!(r"^and\s+\$([0-9a-f]{2})$",     0x25, &line);
+    return_match!(r"^and\s+\$([0-9a-f]{2}),x$"),  0x35, &line);
+    return_match!(r"^eor\s+\$([0-9a-f]{2})$"),    0x45, &line);
+    return_match!(r"^eor\s+\$([0-9a-f]{2}),x$"),  0x55, &line);
+    return_match!(r"^adc\s+\$([0-9a-f]{2})$"),    0x65, &line);
+    return_match!(r"^adc\s+\$([0-9a-f]{2}),x$"),  0x75, &line);
+    return_match!(r"^sta\s+\$([0-9a-f]{2})$"),    0x85, &line);
+    return_match!(r"^sta\s+\$([0-9a-f]{2}),x$"),  0x95, &line);
+    return_match!(r"^lda\s+\$([0-9a-f]{2})$"),    0xa5, &line);
+    return_match!(r"^lda\s+\$([0-9a-f]{2}),x$"),  0xb5, &line);
+    return_match!(r"^cmp\s+\$([0-9a-f]{2})$"),    0xc5, &line);
+    return_match!(r"^cmp\s+\$([0-9a-f]{2}),x$"),  0xd5, &line);
+    return_match!(r"^sbc\s+\$([0-9a-f]{2})$"),    0xe5, &line);
+    return_match!(r"^sbc\s+\$([0-9a-f]{2}),x$"),  0xf5, &line);
+    return_match!(r"^asl\s+\$([0-9a-f]{2})$"),    0x06, &line);
+    return_match!(r"^asl\s+\$([0-9a-f]{2}),x$"),  0x16, &line);
+    return_match!(r"^rol\s+\$([0-9a-f]{2})$"),    0x26, &line);
+    return_match!(r"^rol\s+\$([0-9a-f]{2}),x$"),  0x36, &line);
+    return_match!(r"^lsr\s+\$([0-9a-f]{2})$"),    0x46, &line);
+    return_match!(r"^lsr\s+\$([0-9a-f]{2}),x$"),  0x56, &line);
+    return_match!(r"^ror\s+\$([0-9a-f]{2})$"),    0x66, &line);
+    return_match!(r"^ror\s+\$([0-9a-f]{2}),x$"),  0x76, &line);
+    return_match!(r"^stx\s+\$([0-9a-f]{2})$"),    0x86, &line);
+    return_match!(r"^stx\s+\$([0-9a-f]{2}),y$"),  0x96, &line);
+    return_match!(r"^ldx\s+\$([0-9a-f]{2})$"),    0xa6, &line);
+    return_match!(r"^ldx\s+\$([0-9a-f]{2}),y$"),  0xb6, &line);
+    return_match!(r"^dec\s+\$([0-9a-f]{2})$"),    0xc6, &line);
+    return_match!(r"^dec\s+\$([0-9a-f]{2}),x$"),  0xd6, &line);
+    return_match!(r"^inc\s+\$([0-9a-f]{2})$"),    0xe6, &line);
+    return_match!(r"^inc\s+\$([0-9a-f]{2}),x$"),  0xf6, &line);
+    return_match!(r"^sty\s+\$([0-9a-f]{2})$"),    0x84, &line);
+    return_match!(r"^sty\s+\$([0-9a-f]{2}),x$"),  0x94, &line);
+    return_match!(r"^ldy\s+\$([0-9a-f]{2})$"),    0xa4, &line);
+    return_match!(r"^ldy\s+\$([0-9a-f]{2}),x$"),  0xb4, &line);
+    return_match!(r"^bit\s+\$([0-9a-f]{2})$"),    0x24, &line);
+    return_match!(r"^cpy\s+\$([0-9a-f]{2})$"),    0xc4, &line);
+    return_match!(r"^cpy\s+\$([0-9a-f]{2})$"),    0xe4, &line);
+    
+    // absolutes
+    return_match!(r"^ora\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ora\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^and\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^and\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^eor\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^eor\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^adc\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^adc\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^sta\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^sta\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^lda\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^lda\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^cmp\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^cmp\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^sbc\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^sbc\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^asl\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^asl\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^rol\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^rol\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^lsr\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^lsr\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^ror\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ror\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^stx\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ldx\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ldx\s+\$([0-9a-f]{4}),y$").unwrap();
+    return_match!(r"^dec\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^dec\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^inc\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^inc\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^sty\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ldy\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^ldy\s+\$([0-9a-f]{4}),x$").unwrap();
+    return_match!(r"^bit\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
+    return_match!(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
+
+    return_match!(r"^jmp\s+\$([0-9a-f]{4})$").unwrap();
 
 
-    // let re = Regex::new(r"([A-Za-z]").unwrap();
-    // let text = "2012-03-14, 2013-01-01 and 2014-07-05";
-    // for cap in re.captures_iter(text) {
-    //     println!("Month: {} Day: {} Year: {}", &cap[2], &cap[3], &cap[1]);
-    // }
-
-    else {
-        panic!("the line {}, ({}) was not a valid instruction.", line_number, line);
-    }
+    // If the function hasn't returned by now, there is a problem
+    panic!("the line {}, ({}) was not a valid instruction.", line_number, line);
 }
