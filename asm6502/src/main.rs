@@ -77,6 +77,11 @@ fn preprocess(raw_lines: Vec<String>) -> Vec<String> {
     after_defines
 }
 
+// does endianess matter?
+fn u16_to_two_u8s(arg: u16) -> [u8; 2] {
+    [(arg >> 8) as u8, arg as u8]
+}
+
 
 
 fn main() {
@@ -100,12 +105,13 @@ fn main() {
     // First pass: Use massive branching statement to parse everything
     // put labels in as arguments if nessisary
     // and build label map (label-> absolute address)
-    let mut lines: Vec<Line> = Vec::new();
+    let mut bytes: Vec<u8> = Vec::new();
     let mut labels: HashMap<String, u16> = HashMap::new();
 
     let mut line_number = 0;
     let mut position = 0;
 
+    // first pass, just get the location of labels
     for line in after_defines.clone() {
 
         // blank line
@@ -135,6 +141,60 @@ fn main() {
 
 // Second pass:
 // resolve labels as needed
+    for line in after_defines.clone() {
+
+        // blank line
+        if line == "" {
+            line_number += 1;
+        }
+        // label 
+        else if line.ends_with(":") {
+            line_number += 1;
+        }
+
+        // instruction with zero or one argument
+        else {
+            // TODO, the position can be either 2 or 3. 1 for the opcode, and either 1 or 2 for the argument.
+            // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
+            // also use this: https://skilldrick.github.io/easy6502
+            // just use a massive branching statement
+            let (opcode, args) = get_opcode_and_arguments(line.to_lowercase(), line_number);
+
+            bytes.push(opcode);
+            let branch_codes: [u8; 8] = [0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0];
+
+            if opcode ==  0x4c {
+                let mut addr: u16 = 0;
+                if labels.contains_key(&args) {
+                    addr = labels.get(&args).unwrap().clone();
+                } else {
+                    addr = args.parse().unwrap();
+                }
+                let two_bytes = u16_to_two_u8s(addr);
+                bytes.push(two_bytes[0]);
+                bytes.push(two_bytes[1]);
+            }
+
+            else if branch_codes.contains(&opcode) {
+                // TODO: do relative 8 bit signed math, and add to 'bytes'
+            }
+
+            else if args.len() == 4 {
+                let addr: u16 = args.parse().unwrap();
+                let two_bytes = u16_to_two_u8s(addr);
+                bytes.push(two_bytes[0]);
+                bytes.push(two_bytes[1]);
+            } else if args.len() == 2 {
+                let addr: u8 = args.parse().unwrap();
+                bytes.push(addr);
+            } else {
+                panic!("this probably indicates a misparsed argument to an instruction");
+            }
+
+            position += (1+args.len()/2) as u16;
+            line_number += 1;
+        }
+    }
 
 // note that branches are signed 8 bit relative offsets and jumps are absolute 16 bit addresses
 

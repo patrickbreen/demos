@@ -6,3 +6,5 @@ This repo holds three selected projects to demonstrate some of my non-production
 2. `pong_reinforcement_learning` - a simple pong game that learns to play pong using reinforcement learning.
 
 3. `servers` - A threaded HTTP server written in rust.
+
+4. `asm6502` - A 6502 assembler written in rust.
