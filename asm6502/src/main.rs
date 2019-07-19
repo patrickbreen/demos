@@ -172,10 +172,20 @@ fn main() {
         println!("{:?}: {:?}, {:?} {:?}", line_numbers[i], opcodes[i], args[i], instr_types[i]);
         output_bin_bytes.push(opcodes[i]);
 
-        if instr_types[i] == "label" && labels.contains_key(&args[i]) {
+        if instr_types[i] == "label_rel" && labels.contains_key(&args[i]) {
 
-            // TODO resolve the label
-            output_bin_bytes.push(0x01);
+            // TODO resolve the label - current position is output_bin_bytes.len()
+            let current_position = output_bin_bytes.len() as i32;
+            let jump_addr = *labels.get(&args[i]).unwrap() as i32;
+            let diff = (jump_addr - current_position) as i8;
+            output_bin_bytes.push(diff as u8);
+
+        } else if instr_types[i] == "label_abs" && labels.contains_key(&args[i]) {
+
+            let val = *labels.get(&args[i]).unwrap() + start_mem_address;
+            let vals = u16_to_two_u8s(val);
+            output_bin_bytes.push(vals[0]);
+            output_bin_bytes.push(vals[1]);
 
         } else if instr_types[i] == "u8" {
             let val = u8::from_str_radix(&args[i], 16).unwrap();

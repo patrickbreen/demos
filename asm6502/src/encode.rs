@@ -57,14 +57,14 @@ pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
 
 
     // rels (relative label)
-    patterns.push((r"^bpl\s+([a-zA-Z]\w*)$", 0x10, "label"));
-    patterns.push((r"^bmi\s+([a-zA-Z]\w*)$", 0x30, "label"));
-    patterns.push((r"^bvc\s+([a-zA-Z]\w*)$", 0x50, "label"));
-    patterns.push((r"^bvs\s+([a-zA-Z]\w*)$", 0x70, "label"));
-    patterns.push((r"^bcc\s+([a-zA-Z]\w*)$", 0x90, "label"));
-    patterns.push((r"^bcs\s+([a-zA-Z]\w*)$", 0xb0, "label"));
-    patterns.push((r"^bne\s+([a-zA-Z]\w*)$", 0xd0, "label"));
-    patterns.push((r"^beq\s+([a-zA-Z]\w*)$", 0xf0, "label"));
+    patterns.push((r"^bpl\s+([a-zA-Z]\w*)$", 0x10, "label_rel"));
+    patterns.push((r"^bmi\s+([a-zA-Z]\w*)$", 0x30, "label_rel"));
+    patterns.push((r"^bvc\s+([a-zA-Z]\w*)$", 0x50, "label_rel"));
+    patterns.push((r"^bvs\s+([a-zA-Z]\w*)$", 0x70, "label_rel"));
+    patterns.push((r"^bcc\s+([a-zA-Z]\w*)$", 0x90, "label_rel"));
+    patterns.push((r"^bcs\s+([a-zA-Z]\w*)$", 0xb0, "label_rel"));
+    patterns.push((r"^bne\s+([a-zA-Z]\w*)$", 0xd0, "label_rel"));
+    patterns.push((r"^beq\s+([a-zA-Z]\w*)$", 0xf0, "label_rel"));
 
     // rels unlabeled (relative offset)
     patterns.push((r"^bpl\s+\$([0-9a-f]{1,2})$", 0x10, "u8"));
@@ -190,10 +190,10 @@ pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
     patterns.push((r"^cpx\s+\$([0-9a-f]{1,4})$",    0xec, "u16"));
 
     patterns.push((r"^jmp\s+\$([0-9a-f]{1,4})$",    0x6c, "u16"));
-    patterns.push((r"^jmp\s+([a-zA-Z]\w*)$",        0x6c, "label"));
+    patterns.push((r"^jmp\s+([a-zA-Z]\w*)$",        0x6c, "label_abs"));
 
     patterns.push((r"^jsr\s+\$([0-9a-f]{1,4})$",    0x20, "u16"));
-    patterns.push((r"^jsr\s+([a-zA-Z]\w*)$",        0x20, "label"));
+    patterns.push((r"^jsr\s+([a-zA-Z]\w*)$",        0x20, "label_abs"));
 
     let mut compiled_patterns = Vec::new();
     for (pattern, opcode, instr_type) in patterns {
