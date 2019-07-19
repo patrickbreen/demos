@@ -100,6 +100,13 @@ fn main() {
     }
 
     let after_defines = preprocess(raw_lines);
+    println!("--------------------\n\n\n");
+    println!("After defines:");
+
+    for line in after_defines.clone() {
+        println!("{:?}", line);
+    }
+    println!("--------------------\n\n\n");
 
 
     // First pass: Use massive branching statement to parse everything
@@ -113,6 +120,7 @@ fn main() {
 
     // first pass, just get the location of labels
     for line in after_defines.clone() {
+
 
         // blank line
         if line == "" {
@@ -131,78 +139,80 @@ fn main() {
             // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
             // also use this: https://skilldrick.github.io/easy6502
             // just use a massive branching statement
-            let (opcode, args) = get_opcode_and_arguments(line.to_lowercase(), line_number);
+            let (opcode, args) = get_opcode_and_arguments(line.to_lowercase().trim().to_string(), line_number);
             position += (1+args.len()/2) as u16;
+            
+
+            println!("{:?}:{:?} - {:?},{:?}", line_number, position, opcode, args);
             line_number += 1;
         }
+        
     }
 
+    // println!("--------------------\n\n\n");
+    // println!("Labels:");
+    // println!("{:?}", labels);
 
+// // Second pass:
+// // resolve labels as needed
+//     for line in after_defines.clone() {
 
-// Second pass:
-// resolve labels as needed
-    for line in after_defines.clone() {
+//         // blank line
+//         if line == "" {
+//             line_number += 1;
+//         }
+//         // label 
+//         else if line.ends_with(":") {
+//             line_number += 1;
+//         }
 
-        // blank line
-        if line == "" {
-            line_number += 1;
-        }
-        // label 
-        else if line.ends_with(":") {
-            line_number += 1;
-        }
+//         // instruction with zero or one argument
+//         else {
+//             // TODO, the position can be either 2 or 3. 1 for the opcode, and either 1 or 2 for the argument.
+//             // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
+//             // also use this: https://skilldrick.github.io/easy6502
+//             // just use a massive branching statement
+//             let (opcode, args) = get_opcode_and_arguments(line.to_lowercase(), line_number);
 
-        // instruction with zero or one argument
-        else {
-            // TODO, the position can be either 2 or 3. 1 for the opcode, and either 1 or 2 for the argument.
-            // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
-            // also use this: https://skilldrick.github.io/easy6502
-            // just use a massive branching statement
-            let (opcode, args) = get_opcode_and_arguments(line.to_lowercase(), line_number);
+//             bytes.push(opcode);
+//             let branch_codes: [u8; 8] = [0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0];
 
-            bytes.push(opcode);
-            let branch_codes: [u8; 8] = [0x10, 0x30, 0x50, 0x70, 0x90, 0xb0, 0xd0, 0xf0];
+//             if opcode ==  0x4c {
+//                 let mut addr: u16 = 0;
+//                 if labels.contains_key(&args) {
+//                     addr = labels.get(&args).unwrap().clone();
+//                 } else {
+//                     addr = args.parse().unwrap();
+//                 }
+//                 let two_bytes = u16_to_two_u8s(addr);
+//                 bytes.push(two_bytes[0]);
+//                 bytes.push(two_bytes[1]);
+//             }
 
-            if opcode ==  0x4c {
-                let mut addr: u16 = 0;
-                if labels.contains_key(&args) {
-                    addr = labels.get(&args).unwrap().clone();
-                } else {
-                    addr = args.parse().unwrap();
-                }
-                let two_bytes = u16_to_two_u8s(addr);
-                bytes.push(two_bytes[0]);
-                bytes.push(two_bytes[1]);
-            }
+//             else if branch_codes.contains(&opcode) {
+//                 // TODO: do relative 8 bit signed math, and add to 'bytes'
+//             }
 
-            else if branch_codes.contains(&opcode) {
-                // TODO: do relative 8 bit signed math, and add to 'bytes'
-            }
+//             else if args.len() == 4 {
+//                 let addr: u16 = args.parse().unwrap();
+//                 let two_bytes = u16_to_two_u8s(addr);
+//                 bytes.push(two_bytes[0]);
+//                 bytes.push(two_bytes[1]);
+//             } else if args.len() == 2 {
+//                 let addr: u8 = args.parse().unwrap();
+//                 bytes.push(addr);
+//             } else {
+//                 panic!("this probably indicates a misparsed argument to an instruction");
+//             }
 
-            else if args.len() == 4 {
-                let addr: u16 = args.parse().unwrap();
-                let two_bytes = u16_to_two_u8s(addr);
-                bytes.push(two_bytes[0]);
-                bytes.push(two_bytes[1]);
-            } else if args.len() == 2 {
-                let addr: u8 = args.parse().unwrap();
-                bytes.push(addr);
-            } else {
-                panic!("this probably indicates a misparsed argument to an instruction");
-            }
-
-            position += (1+args.len()/2) as u16;
-            line_number += 1;
-        }
-    }
+//             position += (1+args.len()/2) as u16;
+//             line_number += 1;
+//         }
+//     }
 
 // note that branches are signed 8 bit relative offsets and jumps are absolute 16 bit addresses
 
 
 
-    print!("--------------------\n\n\n");
 
-    for line in after_defines.clone() {
-        print!("{:?}\n", line);
-    }
 }
