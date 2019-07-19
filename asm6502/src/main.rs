@@ -84,8 +84,10 @@ fn u16_to_two_u8s(arg: u16) -> [u8; 2] {
     [(arg >> 8) as u8, arg as u8]
 }
 
-fn parse(after_defines: Vec<String>, compiled_patterns: Vec<(Regex, u8)>) -> (HashMap<String, u16>, Vec<u8>, Vec<String>, Vec<u16>) {
-        // First pass: Use massive branching statement to parse everything
+fn parse(after_defines: Vec<String>,
+         compiled_patterns: Vec<(Regex, u8, &'static str)>) -> 
+         (HashMap<String, u16>, Vec<u8>, Vec<String>, Vec<u16>, Vec<&'static str>) {
+    // First pass: Use massive branching statement to parse everything
     // put labels in as arguments if nessisary
     // and build label map (label-> absolute address)
 
@@ -93,6 +95,7 @@ fn parse(after_defines: Vec<String>, compiled_patterns: Vec<(Regex, u8)>) -> (Ha
     let mut opcodes: Vec<u8> = Vec::new();
     let mut args: Vec<String> = Vec::new();
     let mut line_numbers: Vec<u16> = Vec::new();
+    let mut instr_types: Vec<&'static str> = Vec::new();
 
     let mut line_number = 1;
     let mut position = 0;
@@ -118,18 +121,19 @@ fn parse(after_defines: Vec<String>, compiled_patterns: Vec<(Regex, u8)>) -> (Ha
             // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
             // also use this: https://skilldrick.github.io/easy6502
             // just use a massive branching statement
-            let (opcode, arg) = get_opcode_and_arguments(
+            let (opcode, arg, instr_type) = get_opcode_and_arguments(
                                     line.to_lowercase().trim().to_string(),
                                     line_number, &compiled_patterns);
             position += (1+args.len()/2) as u16;
             opcodes.push(opcode);
             args.push(arg);
             line_numbers.push(line_number);
+            instr_types.push(instr_type);
             line_number += 1;
         }
         
     }
-    (labels, opcodes, args, line_numbers)
+    (labels, opcodes, args, line_numbers, instr_types)
 }
 
 
@@ -160,12 +164,32 @@ fn main() {
 
     let compiled_patterns = compile_patterns();
 
-    let (labels, opcodes, args, line_numbers) = parse(after_defines, compiled_patterns);
+    let (labels, opcodes, args, line_numbers, instr_types) = parse(after_defines, compiled_patterns);
 
+
+    let mut output_bin_bytes: Vec<u8> = Vec::new();
     for i in 0..opcodes.len() {
-        println!("{:?}: {:?}, {:?}", line_numbers[i], opcodes[i], args[i]);
+        println!("{:?}: {:?}, {:?} {:?}", line_numbers[i], opcodes[i], args[i], instr_types[i]);
+        output_bin_bytes.push(opcodes[i]);
+
+        if instr_types[i] == "label" && labels.contains_key(&args[i]) {
+
+            // TODO resolve the label
+            output_bin_bytes.push(0x01);
+
+        } else if instr_types[i] == "u8" {
+            let val = u8::from_str_radix(&args[i], 16).unwrap();
+            output_bin_bytes.push(val);
+        } else if instr_types[i] == "u16" {
+            let val = u16::from_str_radix(&args[i], 16).unwrap();
+            let vals = u16_to_two_u8s(val);
+            output_bin_bytes.push(vals[0]);
+            output_bin_bytes.push(vals[1]);
+        }
+
     }
 
-    // TODO 1) resolve labels and 2) output bytes
+    println!("--------------------\n\n\n");
+    println!("{:?}", output_bin_bytes);
 
 }
