@@ -4,10 +4,11 @@ use std::io::{BufReader, BufRead};
 use std::fs::File;
 use std::collections::hash_map::HashMap;
 use std::vec::Vec;
+use regex::Regex;
 
 
 mod encode;
-use encode::get_opcode_and_arguments;
+use encode::{compile_patterns, get_opcode_and_arguments};
 
 #[derive(Debug, Clone)]
 struct Line {
@@ -52,6 +53,7 @@ fn preprocess(raw_lines: Vec<String>) -> Vec<String> {
                 replace:String::from(tokens[2])
             };
             defines.push(d);
+            not_defines.push("".to_string());
             
         } else {
             not_defines.push(line);
@@ -77,36 +79,30 @@ fn preprocess(raw_lines: Vec<String>) -> Vec<String> {
     after_defines
 }
 
+// does endianess matter?
+fn u16_to_two_u8s(arg: u16) -> [u8; 2] {
+    [(arg >> 8) as u8, arg as u8]
+}
 
-
-fn main() {
-    // All binaries are placed at 0x0600 offset (starting position)
-    let start_mem_address: u16 = 0x0600;
-
-
-    // read file
-    let f = File::open("example.6502asm").unwrap();
-    let f = BufReader::new(f);
-    
-    let mut raw_lines = Vec::new();
-
-    for line in f.lines() {
-        raw_lines.push(String::from(line.unwrap().trim()));
-    }
-
-    let after_defines = preprocess(raw_lines);
-
-
+fn parse(after_defines: Vec<String>,
+         compiled_patterns: Vec<(Regex, u8, &'static str)>) -> 
+         (HashMap<String, u16>, Vec<u8>, Vec<String>, Vec<u16>, Vec<&'static str>) {
     // First pass: Use massive branching statement to parse everything
     // put labels in as arguments if nessisary
     // and build label map (label-> absolute address)
-    let mut lines: Vec<Line> = Vec::new();
-    let mut labels: HashMap<String, u16> = HashMap::new();
 
-    let mut line_number = 0;
+    let mut labels: HashMap<String, u16> = HashMap::new();
+    let mut opcodes: Vec<u8> = Vec::new();
+    let mut args: Vec<String> = Vec::new();
+    let mut line_numbers: Vec<u16> = Vec::new();
+    let mut instr_types: Vec<&'static str> = Vec::new();
+
+    let mut line_number = 1;
     let mut position = 0;
 
+    // first pass, just get the location of labels
     for line in after_defines.clone() {
+
 
         // blank line
         if line == "" {
@@ -125,24 +121,85 @@ fn main() {
             // use this to get opcodes: https://www.masswerk.at/6502/6502_instruction_set.html
             // also use this: https://skilldrick.github.io/easy6502
             // just use a massive branching statement
-            let (opcode, args) = get_opcode_and_arguments(line.to_lowercase(), line_number);
+            let (opcode, arg, instr_type) = get_opcode_and_arguments(
+                                    line.to_lowercase().trim().to_string(),
+                                    line_number, &compiled_patterns);
             position += (1+args.len()/2) as u16;
+            opcodes.push(opcode);
+            args.push(arg);
+            line_numbers.push(line_number);
+            instr_types.push(instr_type);
             line_number += 1;
         }
+        
+    }
+    (labels, opcodes, args, line_numbers, instr_types)
+}
+
+
+
+fn main() {
+    // All binaries are placed at 0x0600 offset (starting position)
+    let start_mem_address: u16 = 0x0600;
+
+
+    // read file
+    let f = File::open("example.6502asm").unwrap();
+    let f = BufReader::new(f);
+    
+    let mut raw_lines = Vec::new();
+
+    for line in f.lines() {
+        raw_lines.push(String::from(line.unwrap().trim()));
     }
 
-
-
-// Second pass:
-// resolve labels as needed
-
-// note that branches are signed 8 bit relative offsets and jumps are absolute 16 bit addresses
-
-
-
-    print!("--------------------\n\n\n");
+    let after_defines = preprocess(raw_lines);
+    println!("--------------------\n\n\n");
+    println!("After defines:");
 
     for line in after_defines.clone() {
-        print!("{:?}\n", line);
+        println!("{:?}", line);
     }
+    println!("--------------------\n\n\n");
+
+    let compiled_patterns = compile_patterns();
+
+    let (labels, opcodes, args, line_numbers, instr_types) = parse(after_defines, compiled_patterns);
+
+
+    let mut output_bin_bytes: Vec<u8> = Vec::new();
+    for i in 0..opcodes.len() {
+        println!("{:?}: {:?}, {:?} {:?}", line_numbers[i], opcodes[i], args[i], instr_types[i]);
+        output_bin_bytes.push(opcodes[i]);
+
+        if instr_types[i] == "label_rel" && labels.contains_key(&args[i]) {
+
+            // TODO resolve the label - current position is output_bin_bytes.len()
+            let current_position = output_bin_bytes.len() as i32;
+            let jump_addr = *labels.get(&args[i]).unwrap() as i32;
+            let diff = (jump_addr - current_position) as i8;
+            output_bin_bytes.push(diff as u8);
+
+        } else if instr_types[i] == "label_abs" && labels.contains_key(&args[i]) {
+
+            let val = *labels.get(&args[i]).unwrap() + start_mem_address;
+            let vals = u16_to_two_u8s(val);
+            output_bin_bytes.push(vals[0]);
+            output_bin_bytes.push(vals[1]);
+
+        } else if instr_types[i] == "u8" {
+            let val = u8::from_str_radix(&args[i], 16).unwrap();
+            output_bin_bytes.push(val);
+        } else if instr_types[i] == "u16" {
+            let val = u16::from_str_radix(&args[i], 16).unwrap();
+            let vals = u16_to_two_u8s(val);
+            output_bin_bytes.push(vals[0]);
+            output_bin_bytes.push(vals[1]);
+        }
+
+    }
+
+    println!("--------------------\n\n\n");
+    println!("{:?}", output_bin_bytes);
+
 }

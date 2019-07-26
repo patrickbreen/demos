@@ -1,178 +1,206 @@
 use regex::{Regex, Captures};
 
+pub fn get_opcode_and_arguments(line: String,
+                                line_number: u16,
+                                compiled_patterns: &Vec<(Regex, u8, &'static str)>) -> 
+                                (u8, String, &'static str) {
 
-macro_rules! return_match {
-    ( $pattern:expr, $opcode:expr, $line:expr ) => {
-        {
-            let re = Regex::new($pattern).unwrap();
-            if re.is_match($line) {
-                let caps =  re.captures_iter($line).collect::<Vec<Captures>>();
-                return ($opcode, caps[0][1].to_string());
-            }
+    for (re, opcode, instr_type) in compiled_patterns{
+        if re.is_match(&line) {
+            let caps =  re.captures(&line).unwrap();
+            let group1 = caps.get(1).map_or("", |m| m.as_str());
+            return (*opcode, group1.to_string(), instr_type);
         }
-    };
+    }
+    // If the function hasn't returned by now, there is a problem
+    panic!("the line {}, \"{}\" was not a valid instruction.", line_number, line);
 }
 
 
 // takes a line with an instruction and returns opcode, args string, arg_length,
 // uses a massive branching statement
-pub fn get_opcode_and_arguments(line: String, line_number: u16) -> (u8, String) {
+pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
+
+    let mut patterns: Vec<(&str, u8, &'static str)> = Vec::new();
 
     // all the impls and As
-    // TODO this block needs to be fixed to use the macro
-    if line      == "brk" { return (0x00, "".to_string()); }
-    else if line == "rti" { return (0x40, "".to_string()); }
-    else if line == "rts" { return (0x60, "".to_string()); }
-    else if line == "php" { return (0x08, "".to_string()); }
-    else if line == "clc" { return (0x18, "".to_string()); }
-    else if line == "plp" { return (0x28, "".to_string()); }
-    else if line == "sec" { return (0x38, "".to_string()); }
-    else if line == "pha" { return (0x48, "".to_string()); }
-    else if line == "cli" { return (0x58, "".to_string()); }
-    else if line == "pla" { return (0x68, "".to_string()); }
-    else if line == "sei" { return (0x78, "".to_string()); }
-    else if line == "dey" { return (0x88, "".to_string()); }
-    else if line == "tya" { return (0x98, "".to_string()); }
-    else if line == "tay" { return (0xa8, "".to_string()); }
-    else if line == "clv" { return (0xb8, "".to_string()); }
-    else if line == "iny" { return (0xc8, "".to_string()); }
-    else if line == "cld" { return (0xd8, "".to_string()); }
-    else if line == "inx" { return (0xe8, "".to_string()); }
-    else if line == "sed" { return (0xf8, "".to_string()); }
-    else if line == "txa" { return (0x8a, "".to_string()); }
-    else if line == "txs" { return (0x9a, "".to_string()); }
-    else if line == "tax" { return (0xaa, "".to_string()); }
-    else if line == "tsx" { return (0xba, "".to_string()); }
-    else if line == "dex" { return (0xca, "".to_string()); }
-    else if line == "nop" { return (0xea, "".to_string()); }
+    patterns.push((r"^brk$", 0x00, "no_arg"));
+    patterns.push((r"^rti$", 0x40, "no_arg"));
+    patterns.push((r"^rts$", 0x60, "no_arg"));
+    patterns.push((r"^php$", 0x08, "no_arg"));
+    patterns.push((r"^clc$", 0x18, "no_arg"));
+    patterns.push((r"^plp$", 0x28, "no_arg"));
+    patterns.push((r"^sec$", 0x38, "no_arg"));
+    patterns.push((r"^pha$", 0x48, "no_arg"));
+    patterns.push((r"^cli$", 0x58, "no_arg"));
+    patterns.push((r"^pla$", 0x68, "no_arg"));
+    patterns.push((r"^sei$", 0x78, "no_arg"));
+    patterns.push((r"^dey$", 0x88, "no_arg"));
+    patterns.push((r"^tya$", 0x98, "no_arg"));
+    patterns.push((r"^tay$", 0xa8, "no_arg"));
+    patterns.push((r"^clv$", 0xb8, "no_arg"));
+    patterns.push((r"^iny$", 0xc8, "no_arg"));
+    patterns.push((r"^cld$", 0xd8, "no_arg"));
+    patterns.push((r"^inx$", 0xe8, "no_arg"));
+    patterns.push((r"^sed$", 0xf8, "no_arg"));
+    patterns.push((r"^txa$", 0x8a, "no_arg"));
+    patterns.push((r"^txs$", 0x9a, "no_arg"));
+    patterns.push((r"^tax$", 0xaa, "no_arg"));
+    patterns.push((r"^tsx$", 0xba, "no_arg"));
+    patterns.push((r"^dex$", 0xca, "no_arg"));
+    patterns.push((r"^nop$", 0xea, "no_arg"));
 
-    else if line == "asl a" { return (0x0a, "".to_string()); }
-    else if line == "rol a" { return (0x2a, "".to_string()); }
-    else if line == "lsr a" { return (0x4a, "".to_string()); }
-    else if line == "ror a" { return (0x6a, "".to_string()); }
+    patterns.push((r"^asl$", 0x0a, "no_arg"));
+    patterns.push((r"^rol$", 0x2a, "no_arg"));
+    patterns.push((r"^lsr$", 0x4a, "no_arg"));
+    patterns.push((r"^ror$", 0x6a, "no_arg"));
 
 
-    // rels (assume they are all labeled... for now)
-    return_match!(r"^bvc\s+(\w{1, 20})$", 0x50, &line);
-    return_match!(r"^bvs\s+(\w{1, 20})$", 0x90, &line);
-    return_match!(r"^bne\s+(\w{1, 20})$", 0xd0, &line);
-    return_match!(r"^beq\s+(\w{1, 20})$", 0xf0, &line);
+    // rels (relative label)
+    patterns.push((r"^bpl\s+([a-zA-Z]\w*)$", 0x10, "label_rel"));
+    patterns.push((r"^bmi\s+([a-zA-Z]\w*)$", 0x30, "label_rel"));
+    patterns.push((r"^bvc\s+([a-zA-Z]\w*)$", 0x50, "label_rel"));
+    patterns.push((r"^bvs\s+([a-zA-Z]\w*)$", 0x70, "label_rel"));
+    patterns.push((r"^bcc\s+([a-zA-Z]\w*)$", 0x90, "label_rel"));
+    patterns.push((r"^bcs\s+([a-zA-Z]\w*)$", 0xb0, "label_rel"));
+    patterns.push((r"^bne\s+([a-zA-Z]\w*)$", 0xd0, "label_rel"));
+    patterns.push((r"^beq\s+([a-zA-Z]\w*)$", 0xf0, "label_rel"));
+
+    // rels unlabeled (relative offset)
+    patterns.push((r"^bpl\s+\$([0-9a-f]{1,2})$", 0x10, "u8"));
+    patterns.push((r"^bmi\s+\$([0-9a-f]{1,2})$", 0x30, "u8"));
+    patterns.push((r"^bvc\s+\$([0-9a-f]{1,2})$", 0x50, "u8"));
+    patterns.push((r"^bvs\s+\$([0-9a-f]{1,2})$", 0x70, "u8"));
+    patterns.push((r"^bcc\s+\$([0-9a-f]{1,2})$", 0x90, "u8"));
+    patterns.push((r"^bcs\s+\$([0-9a-f]{1,2})$", 0xb0, "u8"));
+    patterns.push((r"^bne\s+\$([0-9a-f]{1,2})$", 0xd0, "u8"));
+    patterns.push((r"^beq\s+\$([0-9a-f]{1,2})$", 0xf0, "u8"));
 
     // immediates
-    return_match!(r"^ldy\s+#\$([0-9a-f]{2})", 0xa0, &line);
-    return_match!(r"^ldx\s+#\$([0-9a-f]{2})", 0xa2, &line);
-    return_match!(r"^cpy\s+#\$([0-9a-f]{2})", 0xc0, &line);
-    return_match!(r"^ora\s+#\$([0-9a-f]{2})", 0x09, &line);
-    return_match!(r"^and\s+#\$([0-9a-f]{2})", 0x29, &line);
-    return_match!(r"^eor\s+#\$([0-9a-f]{2})", 0x49, &line);
-    return_match!(r"^adc\s+#\$([0-9a-f]{2})", 0x69, &line);
-    return_match!(r"^lda\s+#\$([0-9a-f]{2})", 0xa9, &line);
-    return_match!(r"^cmp\s+#\$([0-9a-f]{2})", 0xc9, &line);
-    return_match!(r"^sbc\s+#\$([0-9a-f]{2})", 0xe9, &line);
+    patterns.push((r"^ldy\s+#\$?([0-9a-f]{1,2})", 0xa0, "u8"));
+    patterns.push((r"^ldx\s+#\$?([0-9a-f]{1,2})", 0xa2, "u8"));
+    patterns.push((r"^cpy\s+#\$?([0-9a-f]{1,2})", 0xc0, "u8"));
+    patterns.push((r"^cpx\s+#\$?([0-9a-f]{1,2})", 0xe0, "u8"));
+    patterns.push((r"^ora\s+#\$?([0-9a-f]{1,2})", 0x09, "u8"));
+    patterns.push((r"^and\s+#\$?([0-9a-f]{1,2})", 0x29, "u8"));
+    patterns.push((r"^eor\s+#\$?([0-9a-f]{1,2})", 0x49, "u8"));
+    patterns.push((r"^adc\s+#\$?([0-9a-f]{1,2})", 0x69, "u8"));
+    patterns.push((r"^lda\s+#\$?([0-9a-f]{1,2})", 0xa9, "u8"));
+    patterns.push((r"^cmp\s+#\$?([0-9a-f]{1,2})", 0xc9, "u8"));
+    patterns.push((r"^sbc\s+#\$?([0-9a-f]{1,2})", 0xe9, "u8"));
 
     // indirect
-    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),x\)$", 0x01, &line);
-    return_match!(r"^ora\s+\(\$([0-9a-f]{2}),y\)$", 0x11, &line);
-    return_match!(r"^and\s+\(\$([0-9a-f]{2}),x\)$", 0x21, &line);
-    return_match!(r"^and\s+\(\$([0-9a-f]{2}),y\)$", 0x31, &line);
-    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),x\)$", 0x41, &line);
-    return_match!(r"^eor\s+\(\$([0-9a-f]{2}),y\)$", 0x51, &line);
-    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),x\)$", 0x61, &line);
-    return_match!(r"^adc\s+\(\$([0-9a-f]{2}),y\)$", 0x71, &line);
-    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),x\)$", 0x81, &line);
-    return_match!(r"^sta\s+\(\$([0-9a-f]{2}),y\)$", 0x91, &line);
-    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),x\)$", 0xa1, &line);
-    return_match!(r"^lda\s+\(\$([0-9a-f]{2}),y\)$", 0xb1, &line);
-    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),x\)$", 0xc1, &line);
-    return_match!(r"^cmp\s+\(\$([0-9a-f]{2}),y\)$", 0xd1, &line);
-    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),x\)$", 0xe1, &line);
-    return_match!(r"^sbc\s+\(\$([0-9a-f]{2}),y\)$", 0xf1, &line);
+    patterns.push((r"^ora\s+\(\$([0-9a-f]{1,2}),x\)$", 0x01, "u8"));
+    patterns.push((r"^ora\s+\(\$([0-9a-f]{1,2})\),y", 0x11, "u8"));
+    patterns.push((r"^and\s+\(\$([0-9a-f]{1,2}),x\)$", 0x21, "u8"));
+    patterns.push((r"^and\s+\(\$([0-9a-f]{1,2})\),y", 0x31, "u8"));
+    patterns.push((r"^eor\s+\(\$([0-9a-f]{1,2}),x\)$", 0x41, "u8"));
+    patterns.push((r"^eor\s+\(\$([0-9a-f]{1,2})\),y", 0x51, "u8"));
+    patterns.push((r"^adc\s+\(\$([0-9a-f]{1,2}),x\)$", 0x61, "u8"));
+    patterns.push((r"^adc\s+\(\$([0-9a-f]{1,2})\),y", 0x71, "u8"));
+    patterns.push((r"^sta\s+\(\$([0-9a-f]{1,2}),x\)$", 0x81, "u8"));
+    patterns.push((r"^sta\s+\(\$([0-9a-f]{1,2})\),y", 0x91, "u8"));
+    patterns.push((r"^lda\s+\(\$([0-9a-f]{1,2}),x\)$", 0xa1, "u8"));
+    patterns.push((r"^lda\s+\(\$([0-9a-f]{1,2})\),y", 0xb1, "u8"));
+    patterns.push((r"^cmp\s+\(\$([0-9a-f]{1,2}),x\)$", 0xc1, "u8"));
+    patterns.push((r"^cmp\s+\(\$([0-9a-f]{1,2})\),y", 0xd1, "u8"));
+    patterns.push((r"^sbc\s+\(\$([0-9a-f]{1,2}),x\)$", 0xe1, "u8"));
+    patterns.push((r"^sbc\s+\(\$([0-9a-f]{1,2})\),y", 0xf1, "u8"));
 
-    return_match!(r"^jmp\s+\(\$([0-9a-f]{4})\)$",   0x6c, &line);
+    patterns.push((r"^jmp\s+\(\$([0-9a-f]{1,4})\)$",   0x6c, "u16"));
 
     // zpgs
-    return_match!(r"^ora\s+\$([0-9a-f]{2})$",     0x05, &line);
-    return_match!(r"^ora\s+\$([0-9a-f]{2}),x$",   0x15, &line);
-    return_match!(r"^and\s+\$([0-9a-f]{2})$",     0x25, &line);
-    return_match!(r"^and\s+\$([0-9a-f]{2}),x$"),  0x35, &line);
-    return_match!(r"^eor\s+\$([0-9a-f]{2})$"),    0x45, &line);
-    return_match!(r"^eor\s+\$([0-9a-f]{2}),x$"),  0x55, &line);
-    return_match!(r"^adc\s+\$([0-9a-f]{2})$"),    0x65, &line);
-    return_match!(r"^adc\s+\$([0-9a-f]{2}),x$"),  0x75, &line);
-    return_match!(r"^sta\s+\$([0-9a-f]{2})$"),    0x85, &line);
-    return_match!(r"^sta\s+\$([0-9a-f]{2}),x$"),  0x95, &line);
-    return_match!(r"^lda\s+\$([0-9a-f]{2})$"),    0xa5, &line);
-    return_match!(r"^lda\s+\$([0-9a-f]{2}),x$"),  0xb5, &line);
-    return_match!(r"^cmp\s+\$([0-9a-f]{2})$"),    0xc5, &line);
-    return_match!(r"^cmp\s+\$([0-9a-f]{2}),x$"),  0xd5, &line);
-    return_match!(r"^sbc\s+\$([0-9a-f]{2})$"),    0xe5, &line);
-    return_match!(r"^sbc\s+\$([0-9a-f]{2}),x$"),  0xf5, &line);
-    return_match!(r"^asl\s+\$([0-9a-f]{2})$"),    0x06, &line);
-    return_match!(r"^asl\s+\$([0-9a-f]{2}),x$"),  0x16, &line);
-    return_match!(r"^rol\s+\$([0-9a-f]{2})$"),    0x26, &line);
-    return_match!(r"^rol\s+\$([0-9a-f]{2}),x$"),  0x36, &line);
-    return_match!(r"^lsr\s+\$([0-9a-f]{2})$"),    0x46, &line);
-    return_match!(r"^lsr\s+\$([0-9a-f]{2}),x$"),  0x56, &line);
-    return_match!(r"^ror\s+\$([0-9a-f]{2})$"),    0x66, &line);
-    return_match!(r"^ror\s+\$([0-9a-f]{2}),x$"),  0x76, &line);
-    return_match!(r"^stx\s+\$([0-9a-f]{2})$"),    0x86, &line);
-    return_match!(r"^stx\s+\$([0-9a-f]{2}),y$"),  0x96, &line);
-    return_match!(r"^ldx\s+\$([0-9a-f]{2})$"),    0xa6, &line);
-    return_match!(r"^ldx\s+\$([0-9a-f]{2}),y$"),  0xb6, &line);
-    return_match!(r"^dec\s+\$([0-9a-f]{2})$"),    0xc6, &line);
-    return_match!(r"^dec\s+\$([0-9a-f]{2}),x$"),  0xd6, &line);
-    return_match!(r"^inc\s+\$([0-9a-f]{2})$"),    0xe6, &line);
-    return_match!(r"^inc\s+\$([0-9a-f]{2}),x$"),  0xf6, &line);
-    return_match!(r"^sty\s+\$([0-9a-f]{2})$"),    0x84, &line);
-    return_match!(r"^sty\s+\$([0-9a-f]{2}),x$"),  0x94, &line);
-    return_match!(r"^ldy\s+\$([0-9a-f]{2})$"),    0xa4, &line);
-    return_match!(r"^ldy\s+\$([0-9a-f]{2}),x$"),  0xb4, &line);
-    return_match!(r"^bit\s+\$([0-9a-f]{2})$"),    0x24, &line);
-    return_match!(r"^cpy\s+\$([0-9a-f]{2})$"),    0xc4, &line);
-    return_match!(r"^cpy\s+\$([0-9a-f]{2})$"),    0xe4, &line);
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,2})$",     0x05, "u8"));
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,2}),x$",   0x15, "u8"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,2})$",     0x25, "u8"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,2}),x$",  0x35, "u8"));
+    patterns.push((r"^eor\s+\$([0-9a-f]{1,2})$",    0x45, "u8"));
+    patterns.push((r"^eor\s+\$([0-9a-f]{1,2}),x$",  0x55, "u8"));
+    patterns.push((r"^adc\s+\$([0-9a-f]{1,2})$",    0x65, "u8"));
+    patterns.push((r"^adc\s+\$([0-9a-f]{1,2}),x$",  0x75, "u8"));
+    patterns.push((r"^sta\s+\$([0-9a-f]{1,2})$",    0x85, "u8"));
+    patterns.push((r"^sta\s+\$([0-9a-f]{1,2}),x$",  0x95, "u8"));
+    patterns.push((r"^lda\s+\$([0-9a-f]{1,2})$",    0xa5, "u8"));
+    patterns.push((r"^lda\s+\$([0-9a-f]{1,2}),x$",  0xb5, "u8"));
+    patterns.push((r"^cmp\s+\$([0-9a-f]{1,2})$",    0xc5, "u8"));
+    patterns.push((r"^cmp\s+\$([0-9a-f]{1,2}),x$",  0xd5, "u8"));
+    patterns.push((r"^sbc\s+\$([0-9a-f]{1,2})$",    0xe5, "u8"));
+    patterns.push((r"^sbc\s+\$([0-9a-f]{1,2}),x$",  0xf5, "u8"));
+    patterns.push((r"^asl\s+\$([0-9a-f]{1,2})$",    0x06, "u8"));
+    patterns.push((r"^asl\s+\$([0-9a-f]{1,2}),x$",  0x16, "u8"));
+    patterns.push((r"^rol\s+\$([0-9a-f]{1,2})$",    0x26, "u8"));
+    patterns.push((r"^rol\s+\$([0-9a-f]{1,2}),x$",  0x36, "u8"));
+    patterns.push((r"^lsr\s+\$([0-9a-f]{1,2})$",    0x46, "u8"));
+    patterns.push((r"^lsr\s+\$([0-9a-f]{1,2}),x$",  0x56, "u8"));
+    patterns.push((r"^ror\s+\$([0-9a-f]{1,2})$",    0x66, "u8"));
+    patterns.push((r"^ror\s+\$([0-9a-f]{1,2}),x$",  0x76, "u8"));
+    patterns.push((r"^stx\s+\$([0-9a-f]{1,2})$",    0x86, "u8"));
+    patterns.push((r"^stx\s+\$([0-9a-f]{1,2}),y$",  0x96, "u8"));
+    patterns.push((r"^ldx\s+\$([0-9a-f]{1,2})$",    0xa6, "u8"));
+    patterns.push((r"^ldx\s+\$([0-9a-f]{1,2}),y$",  0xb6, "u8"));
+    patterns.push((r"^dec\s+\$([0-9a-f]{1,2})$",    0xc6, "u8"));
+    patterns.push((r"^dec\s+\$([0-9a-f]{1,2}),x$",  0xd6, "u8"));
+    patterns.push((r"^inc\s+\$([0-9a-f]{1,2})$",    0xe6, "u8"));
+    patterns.push((r"^inc\s+\$([0-9a-f]{1,2}),x$",  0xf6, "u8"));
+    patterns.push((r"^sty\s+\$([0-9a-f]{1,2})$",    0x84, "u8"));
+    patterns.push((r"^sty\s+\$([0-9a-f]{1,2}),x$",  0x94, "u8"));
+    patterns.push((r"^ldy\s+\$([0-9a-f]{1,2})$",    0xa4, "u8"));
+    patterns.push((r"^ldy\s+\$([0-9a-f]{1,2}),x$",  0xb4, "u8"));
+    patterns.push((r"^bit\s+\$([0-9a-f]{1,2})$",    0x24, "u8"));
+    patterns.push((r"^cpy\s+\$([0-9a-f]{1,2})$",    0xc4, "u8"));
+    patterns.push((r"^cpx\s+\$([0-9a-f]{1,2})$",    0xe4, "u8"));
     
     // absolutes
-    return_match!(r"^ora\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ora\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^and\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^and\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^eor\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^eor\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^adc\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^adc\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^sta\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^sta\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^lda\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^lda\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^cmp\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^cmp\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^sbc\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^sbc\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^asl\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^asl\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^rol\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^rol\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^lsr\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^lsr\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^ror\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ror\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^stx\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ldx\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ldx\s+\$([0-9a-f]{4}),y$").unwrap();
-    return_match!(r"^dec\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^dec\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^inc\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^inc\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^sty\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ldy\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^ldy\s+\$([0-9a-f]{4}),x$").unwrap();
-    return_match!(r"^bit\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
-    return_match!(r"^cpy\s+\$([0-9a-f]{4})$").unwrap();
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,4})$",    0x0d, "u16"));
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,4}),x$",  0x1d, "u16"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,4})$",    0x2d, "u16"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,4}),x$",  0x3d, "u16"));
+    patterns.push((r"^eor\s+\$([0-9a-f]{1,4})$",    0x4d, "u16"));
+    patterns.push((r"^eor\s+\$([0-9a-f]{1,4}),x$",  0x5d, "u16"));
+    patterns.push((r"^adc\s+\$([0-9a-f]{1,4})$",    0x6d, "u16"));
+    patterns.push((r"^adc\s+\$([0-9a-f]{1,4}),x$",  0x7d, "u16"));
+    patterns.push((r"^sta\s+\$([0-9a-f]{1,4})$",    0x8d, "u16"));
+    patterns.push((r"^sta\s+\$([0-9a-f]{1,4}),x$",  0x9d, "u16"));
+    patterns.push((r"^lda\s+\$([0-9a-f]{1,4})$",    0xad, "u16"));
+    patterns.push((r"^lda\s+\$([0-9a-f]{1,4}),x$",  0xbd, "u16"));
+    patterns.push((r"^cmp\s+\$([0-9a-f]{1,4})$",    0xcd, "u16"));
+    patterns.push((r"^cmp\s+\$([0-9a-f]{1,4}),x$",  0xdd, "u16"));
+    patterns.push((r"^sbc\s+\$([0-9a-f]{1,4})$",    0xed, "u16"));
+    patterns.push((r"^sbc\s+\$([0-9a-f]{1,4}),x$",  0xfd, "u16"));
+    patterns.push((r"^asl\s+\$([0-9a-f]{1,4})$",    0x0e, "u16"));
+    patterns.push((r"^asl\s+\$([0-9a-f]{1,4}),x$",  0x1e, "u16"));
+    patterns.push((r"^rol\s+\$([0-9a-f]{1,4})$",    0x2e, "u16"));
+    patterns.push((r"^rol\s+\$([0-9a-f]{1,4}),x$",  0x3e, "u16"));
+    patterns.push((r"^lsr\s+\$([0-9a-f]{1,4})$",    0x4e, "u16"));
+    patterns.push((r"^lsr\s+\$([0-9a-f]{1,4}),x$",  0x5e, "u16"));
+    patterns.push((r"^ror\s+\$([0-9a-f]{1,4})$",    0x6e, "u16"));
+    patterns.push((r"^ror\s+\$([0-9a-f]{1,4}),x$",  0x7e, "u16"));
+    patterns.push((r"^stx\s+\$([0-9a-f]{1,4})$",    0x8e, "u16"));
+    patterns.push((r"^ldx\s+\$([0-9a-f]{1,4})$",    0x9e, "u16"));
+    patterns.push((r"^ldx\s+\$([0-9a-f]{1,4}),y$",  0xae, "u16"));
+    patterns.push((r"^dec\s+\$([0-9a-f]{1,4})$",    0xbe, "u16"));
+    patterns.push((r"^dec\s+\$([0-9a-f]{1,4}),x$",  0xce, "u16"));
+    patterns.push((r"^inc\s+\$([0-9a-f]{1,4})$",    0xde, "u16"));
+    patterns.push((r"^inc\s+\$([0-9a-f]{1,4}),x$",  0xee, "u16"));
+    patterns.push((r"^sty\s+\$([0-9a-f]{1,4})$",    0xfe, "u16"));
+    patterns.push((r"^ldy\s+\$([0-9a-f]{1,4})$",    0xac, "u16"));
+    patterns.push((r"^ldy\s+\$([0-9a-f]{1,4}),x$",  0xbc, "u16"));
+    patterns.push((r"^bit\s+\$([0-9a-f]{1,4})$",    0x2c, "u16"));
+    patterns.push((r"^cpy\s+\$([0-9a-f]{1,4})$",    0xcc, "u16"));
+    patterns.push((r"^cpx\s+\$([0-9a-f]{1,4})$",    0xec, "u16"));
 
-    return_match!(r"^jmp\s+\$([0-9a-f]{4})$").unwrap();
+    patterns.push((r"^jmp\s+\$([0-9a-f]{1,4})$",    0x6c, "u16"));
+    patterns.push((r"^jmp\s+([a-zA-Z]\w*)$",        0x6c, "label_abs"));
 
+    patterns.push((r"^jsr\s+\$([0-9a-f]{1,4})$",    0x20, "u16"));
+    patterns.push((r"^jsr\s+([a-zA-Z]\w*)$",        0x20, "label_abs"));
 
-    // If the function hasn't returned by now, there is a problem
-    panic!("the line {}, ({}) was not a valid instruction.", line_number, line);
+    let mut compiled_patterns = Vec::new();
+    for (pattern, opcode, instr_type) in patterns {
+        let re = Regex::new(pattern).unwrap();
+        compiled_patterns.push((re, opcode, instr_type));
+    }
+
+    return compiled_patterns;
 }
+
