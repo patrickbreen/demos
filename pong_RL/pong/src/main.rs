@@ -5,6 +5,9 @@ extern crate opengl_graphics;
 extern crate rand;
 extern crate juggernaut;
 
+mod env;
+mod agent;
+
 use crate::rand::Rng;
 
 use piston::window::WindowSettings;
@@ -20,6 +23,9 @@ use juggernaut::activation::Sigmoid;
 use juggernaut::sample::Sample;
 use juggernaut::matrix::MatrixTrait;
 use opengl_graphics::{ GlGraphics, OpenGL };
+
+use env::Env;
+use agent::Agent;
 
 #[derive(Debug, Copy, Clone)]
 pub struct GameState {
@@ -416,8 +422,8 @@ impl Agent {
 
 fn main() {
 
-    let mut env = Env::init();
-    let mut agent = Agent::create();
+    let mut env = env::Env::init();
+    let mut agent = agent::Agent::create();
 
     for episode in 0.. 100 {
 

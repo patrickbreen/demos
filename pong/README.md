@@ -7,6 +7,10 @@ Run the Reinforcement Learning Pong game with:
 
 It should converge to perfect-scoring solution within about 25 episodes. I've seen it converge within 3 episodes. It is variable.
 
+### Testing
+
+There is no testing, because most of the non-trivial functionality is non-deterministic.
+
 
 ### Explanation
 I implemented a form of the Q-learning algorithm to show a simple demonstration of Reinforcement Learning (RL).
