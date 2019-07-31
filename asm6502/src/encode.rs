@@ -17,8 +17,6 @@ pub fn get_opcode_and_arguments(line: String,
 }
 
 
-// takes a line with an instruction and returns opcode, args string, arg_length,
-// uses a massive branching statement
 pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
 
     let mut patterns: Vec<(&str, u8, &'static str)> = Vec::new();
@@ -110,9 +108,9 @@ pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
     patterns.push((r"^jmp\s+\(\$([0-9a-f]{1,4})\)$",   0x6c, "u16"));
 
     // zpgs
-    patterns.push((r"^ora\s+\$([0-9a-f]{1,2})$",     0x05, "u8"));
-    patterns.push((r"^ora\s+\$([0-9a-f]{1,2}),x$",   0x15, "u8"));
-    patterns.push((r"^and\s+\$([0-9a-f]{1,2})$",     0x25, "u8"));
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,2})$",    0x05, "u8"));
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,2}),x$",  0x15, "u8"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,2})$",    0x25, "u8"));
     patterns.push((r"^and\s+\$([0-9a-f]{1,2}),x$",  0x35, "u8"));
     patterns.push((r"^eor\s+\$([0-9a-f]{1,2})$",    0x45, "u8"));
     patterns.push((r"^eor\s+\$([0-9a-f]{1,2}),x$",  0x55, "u8"));
@@ -153,20 +151,28 @@ pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
     // absolutes
     patterns.push((r"^ora\s+\$([0-9a-f]{1,4})$",    0x0d, "u16"));
     patterns.push((r"^ora\s+\$([0-9a-f]{1,4}),x$",  0x1d, "u16"));
+    patterns.push((r"^ora\s+\$([0-9a-f]{1,4}),y$",  0x19, "u16"));
     patterns.push((r"^and\s+\$([0-9a-f]{1,4})$",    0x2d, "u16"));
     patterns.push((r"^and\s+\$([0-9a-f]{1,4}),x$",  0x3d, "u16"));
+    patterns.push((r"^and\s+\$([0-9a-f]{1,4}),y$",  0x39, "u16"));
     patterns.push((r"^eor\s+\$([0-9a-f]{1,4})$",    0x4d, "u16"));
     patterns.push((r"^eor\s+\$([0-9a-f]{1,4}),x$",  0x5d, "u16"));
+    patterns.push((r"^eor\s+\$([0-9a-f]{1,4}),y$",  0x59, "u16"));
     patterns.push((r"^adc\s+\$([0-9a-f]{1,4})$",    0x6d, "u16"));
     patterns.push((r"^adc\s+\$([0-9a-f]{1,4}),x$",  0x7d, "u16"));
+    patterns.push((r"^adc\s+\$([0-9a-f]{1,4}),y$",  0x79, "u16"));
     patterns.push((r"^sta\s+\$([0-9a-f]{1,4})$",    0x8d, "u16"));
     patterns.push((r"^sta\s+\$([0-9a-f]{1,4}),x$",  0x9d, "u16"));
+    patterns.push((r"^sta\s+\$([0-9a-f]{1,4}),y$",  0x99, "u16"));
     patterns.push((r"^lda\s+\$([0-9a-f]{1,4})$",    0xad, "u16"));
     patterns.push((r"^lda\s+\$([0-9a-f]{1,4}),x$",  0xbd, "u16"));
+    patterns.push((r"^lda\s+\$([0-9a-f]{1,4}),y$",  0xb9, "u16"));
     patterns.push((r"^cmp\s+\$([0-9a-f]{1,4})$",    0xcd, "u16"));
     patterns.push((r"^cmp\s+\$([0-9a-f]{1,4}),x$",  0xdd, "u16"));
+    patterns.push((r"^cmp\s+\$([0-9a-f]{1,4}),y$",  0xd9, "u16"));
     patterns.push((r"^sbc\s+\$([0-9a-f]{1,4})$",    0xed, "u16"));
     patterns.push((r"^sbc\s+\$([0-9a-f]{1,4}),x$",  0xfd, "u16"));
+    patterns.push((r"^sbc\s+\$([0-9a-f]{1,4}),y$",  0xf9, "u16"));
     patterns.push((r"^asl\s+\$([0-9a-f]{1,4})$",    0x0e, "u16"));
     patterns.push((r"^asl\s+\$([0-9a-f]{1,4}),x$",  0x1e, "u16"));
     patterns.push((r"^rol\s+\$([0-9a-f]{1,4})$",    0x2e, "u16"));
@@ -182,18 +188,18 @@ pub fn compile_patterns() -> Vec<(Regex, u8, &'static str)> {
     patterns.push((r"^dec\s+\$([0-9a-f]{1,4}),x$",  0xce, "u16"));
     patterns.push((r"^inc\s+\$([0-9a-f]{1,4})$",    0xde, "u16"));
     patterns.push((r"^inc\s+\$([0-9a-f]{1,4}),x$",  0xee, "u16"));
-    patterns.push((r"^sty\s+\$([0-9a-f]{1,4})$",    0xfe, "u16"));
+    patterns.push((r"^sty\s+\$([0-9a-f]{1,4})$",    0x8c, "u16"));
     patterns.push((r"^ldy\s+\$([0-9a-f]{1,4})$",    0xac, "u16"));
     patterns.push((r"^ldy\s+\$([0-9a-f]{1,4}),x$",  0xbc, "u16"));
     patterns.push((r"^bit\s+\$([0-9a-f]{1,4})$",    0x2c, "u16"));
     patterns.push((r"^cpy\s+\$([0-9a-f]{1,4})$",    0xcc, "u16"));
     patterns.push((r"^cpx\s+\$([0-9a-f]{1,4})$",    0xec, "u16"));
 
-    patterns.push((r"^jmp\s+\$([0-9a-f]{1,4})$",    0x6c, "u16"));
-    patterns.push((r"^jmp\s+([a-zA-Z]\w*)$",        0x6c, "label_abs"));
+    patterns.push((r"^jmp\s+\$([0-9a-f]{1,4})$",    0x4c, "u16"));
+    patterns.push((r"^jmp\s+([a-zA-Z]\w*)$",        0x4c, "label_abs"));
 
     patterns.push((r"^jsr\s+\$([0-9a-f]{1,4})$",    0x20, "u16"));
-    patterns.push((r"^jsr\s+([a-zA-Z]\w*)$",        0x20, "label_abs"));
+    patterns.push((r"^jsr\s+([a-zA-Z]\w+)$",        0x20, "label_abs"));
 
     let mut compiled_patterns = Vec::new();
     for (pattern, opcode, instr_type) in patterns {
