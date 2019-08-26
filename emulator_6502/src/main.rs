@@ -2,6 +2,7 @@ mod cpu;
 mod mmu;
 mod registers;
 mod ops;
+mod snake;
 
 use std::env;
 use std::io;
@@ -10,12 +11,17 @@ use std::fs::File;
 
 use ops::make_op_table;
 use cpu::make_cpu;
+use snake::play_snake;
 
 fn main() {
 
     // read rom from file
     let args: Vec<String> = env::args().collect();
     let rom_file_path = args.get(1).expect("usage: $ cargo run <rom_file.bin>");
+
+    if (rom_file_path == "snake") {
+        play_snake();
+    }
 
     let mut rom_file = File::open(rom_file_path).unwrap();
 
