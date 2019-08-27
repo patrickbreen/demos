@@ -1,40 +1,32 @@
-// extern crate piston;
-// extern crate graphics;
-// extern crate glutin_window;
-// extern crate opengl_graphics;
-// extern crate rand;
+extern crate piston;
+extern crate graphics;
+extern crate glutin_window;
+extern crate opengl_graphics;
 
+extern crate rand;
 
-// use crate::rand::Rng;
+use self::piston::window::WindowSettings;
+use self::piston::event_loop::*;
+use self::piston::input::*;
+use self::glutin_window::GlutinWindow as Window;
+use self::opengl_graphics::{ GlGraphics, OpenGL };
 
-// use piston::window::WindowSettings;
-// use piston::event_loop::*;
-// use piston::PressEvent;
-// use piston::input::*;
-// use glutin_window::GlutinWindow as Window;
-// use opengl_graphics::{ GlGraphics, OpenGL };
+use self::rand::Rng;
 
-extern crate piston_window;
-extern crate image as im;
-extern crate vecmath;
-
-use self::piston_window::*;
-use self::vecmath::*;
-
-
+use std::{thread, time};
 use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 
 use ops::make_op_table;
-use cpu::CPU;
+use cpu::{CPU, Instr};
 use mmu::{Block, MMU};
 
 
 fn make_snake_cpu(rom_init: Option<Vec<u8>>) -> CPU {
         let mut mmu = MMU::new(&Vec::new());
         // RAM
-        mmu.add_block(&Block::new(0, 0x5ff, false, None));
+        mmu.add_block(&Block::new(0, 0x600, false, None));
         // ROM
         mmu.add_block(&Block::new(0x600, 0x1000, true, rom_init));
 
@@ -49,76 +41,69 @@ fn make_snake_cpu(rom_init: Option<Vec<u8>>) -> CPU {
 // step the cpu
 // update(poll for input)
 
-fn draw_screen() {
-    let opengl = OpenGL::V3_2;
-    let (width, height) = (200, 200);
-    let mut window: PistonWindow =
-        WindowSettings::new("piston: paint", (width, height))
-        .exit_on_esc(true)
-        .graphics_api(opengl)
-        .build()
-        .unwrap();
+pub struct SnakeApp {
+    gl: GlGraphics,
+    ops: [Instr; 256],
+    cpu: CPU,
+}
 
-    let mut canvas = im::ImageBuffer::new(width, height);
-    let mut draw = false;
-    let mut texture_context = TextureContext {
-        factory: window.factory.clone(),
-        encoder: window.factory.create_command_buffer().into()
-    };
-    let mut texture: G2dTexture = Texture::from_image(
-            &mut texture_context,
-            &canvas,
-            &TextureSettings::new()
-        ).unwrap();
+impl SnakeApp {
+    fn render(&mut self, args: &RenderArgs) {
+        use self::graphics::*;
 
-    let mut last_pos: Option<[f64; 2]> = None;
+        const BLACK: [f32; 4] = [0.0, 0.0, 0.0, 1.0];
+        const WHITE: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+        const RED:   [f32; 4] = [1.0, 0.0, 0.0, 1.0];
+        const CYAN:  [f32; 4] = [0.0, 242.0/256.0, 1.0, 1.0];
+        const PURPLE:  [f32; 4] = [195.0/256.0, 0.0, 1.0, 1.0];
+        const GREEN:  [f32; 4] = [64.0/256.0, 1.0, 0.0, 1.0];
+        const BLUE:  [f32; 4] = [0.0, 26.0/256.0, 1.0, 1.0];
+        const YELLOW:  [f32; 4] = [1.0, 1.0, 0.0, 1.0];
 
-    while let Some(e) = window.next() {
-        if let Some(_) = e.render_args() {
-            texture.update(&mut texture_context, &canvas).unwrap();
-            window.draw_2d(&e, |c, g, device| {
-                // Update texture before rendering.
-                texture_context.encoder.flush(device);
+        const ORANGE:  [f32; 4] = [255.0/256.0, 162.0/256.0, 0.0, 1.0];
+        const BROWN:  [f32; 4] = [156.0/256.0, 90.0/256.0, 40.0/256.0, 1.0];
+        const LIGHT_RED:  [f32; 4] = [255.0/256.0, 117.0/256.0, 117.0/256.0, 1.0];
+        const DARK_GREY:  [f32; 4] = [92.0/256.0, 92.0/256.0, 92.0/256.0, 1.0];
+        const GREY:  [f32; 4] = [135.0/256.0, 135.0/256.0, 135.0/256.0, 1.0];
+        const LIGHT_GREEN:  [f32; 4] = [147.0/256.0, 255.0/256.0, 120.0/256.0, 1.0];
+        const LIGHT_BLUE:  [f32; 4] = [130.0/256.0, 130.0/256.0, 255.0/256.0, 1.0];
+        const LIGHT_GREY:  [f32; 4] = [194.0/256.0, 194.0/256.0, 194.0/256.0, 1.0];
 
-                clear([1.0; 4], g);
-                image(&texture, c.transform, g);
-            });
-        }
-        if let Some(button) = e.press_args() {
-            if button == Button::Mouse(MouseButton::Left) {
-                draw = true;
+        let colors = [BLACK, WHITE, RED, CYAN, PURPLE, GREEN, BLUE, YELLOW,
+            ORANGE, BROWN, LIGHT_RED, DARK_GREY, GREY, LIGHT_GREEN, LIGHT_BLUE, LIGHT_GREY];
+
+        // access the memory
+        let ram = &self.cpu.mmu.blocks[0];
+
+        // let first_byte = &ram.memory[0x200];
+        let start = 0x200;
+
+        let square = rectangle::square(0.0, 0.0, 10.0);
+
+        self.gl.draw(args.viewport(), |c, gl| {
+            // Clear the screen.
+            clear(WHITE, gl);
+
+            let mut i = 0;
+            for j in 0..32 {
+                for k in 0..32 {
+                    let next_byte = &ram.memory[start + i];
+                    let transform = c.transform.trans(10.0*j as f64, 10.0*k as f64);
+                    rectangle(colors[*next_byte as usize], square, transform, gl);
+                    i += 1;
+                }
             }
-        };
-        if let Some(button) = e.release_args() {
-            if button == Button::Mouse(MouseButton::Left) {
-                draw = false;
-                last_pos = None
-            }
-        };
-        if draw {
-            if let Some(pos) = e.mouse_cursor_args() {
-                let (x, y) = (pos[0] as f32, pos[1] as f32);
+        });
+    }
 
-                if let Some(p) = last_pos {
-                    let (last_x, last_y) = (p[0] as f32, p[1] as f32);
-                    let distance = vec2_len(vec2_sub(p, pos)) as u32;
+    fn update(&mut self, args: &UpdateArgs) {
+        self.cpu.step(self.ops);
 
-                    for i in 0..distance {
-                        let diff_x = x - last_x;
-                        let diff_y = y - last_y;
-                        let delta = i as f32 / distance as f32;
-                        let new_x = (last_x + (diff_x * delta)) as u32;
-                        let new_y = (last_y + (diff_y * delta)) as u32;
-                        if new_x < width && new_y < height {
-                            canvas.put_pixel(new_x, new_y, im::Rgba([0, 0, 0, 255]));
-                        };
-                    };
-                };
+        let ten_millis = time::Duration::from_millis(1000);
+        let now = time::Instant::now();
 
-                last_pos = Some(pos)
-            };
+        thread::sleep(ten_millis);
 
-        }
     }
 }
 
@@ -129,22 +114,34 @@ pub fn play_snake() {
     let mut buffer = Vec::new();
     rom_file.read_to_end(&mut buffer).unwrap();
 
-    // init CPU and ops
-    let ops = make_op_table();
-    let mut cpu = make_snake_cpu(Some(buffer));
+    // init GUI
+    let opengl = OpenGL::V3_2;
+    let mut window: Window = WindowSettings::new(
+            "spinning-square",
+            [320, 320]
+        )
+        .graphics_api(opengl)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
 
-    // run program
-    println!("Program initialized, starting cpu...");
+    // Create a new game and run it.
+    let mut app = SnakeApp {
+        gl: GlGraphics::new(opengl),
+        ops: make_op_table(),
+        cpu: make_snake_cpu(Some(buffer)),
+    };
 
-    draw_screen();
+    let mut events = Events::new(EventSettings::new());
+    while let Some(e) = events.next(&mut window) {
+        if let Some(r) = e.render_args() {
+            app.render(&r);
+        }
 
-    // while(true) {
-    //     cpu.step(ops);
-
-    //     // print cpu state for debugging
-    //     println!("opcode: {:x}", cpu.mmu.read(cpu.r.pc as usize));
-    //     println!("cpu: {:?}", cpu.r)
-    // }
+        if let Some(u) = e.update_args() {
+            app.update(&u);
+        }
+    }
 
     panic!("snake game is over");
 }

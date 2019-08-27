@@ -4,16 +4,16 @@
 pub struct Block {
 
     /// The starting address of this block
-    start: usize,
+    pub start: usize,
 
     /// The length of this block
-    length: usize,
+    pub length: usize,
 
     /// If this block is readonly, then it is not writable (such as a ROM)
-    readonly: bool,
+    pub readonly: bool,
 
     /// The memory is stored as a vector of bytes
-    memory: Vec<u8>,
+    pub memory: Vec<u8>,
 }
 
 impl Block {
@@ -61,7 +61,7 @@ impl Block {
 /// be completed in one memory cycle on the target machine.
 #[derive(Debug)]
 pub struct MMU {
-    blocks: Vec<Block>,
+    pub blocks: Vec<Block>,
 }
 
 impl MMU {

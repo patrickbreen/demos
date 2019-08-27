@@ -48,8 +48,8 @@ impl CPU {
     // 4) execute op
     pub fn step(&mut self, ops: [Instr; 256]) {
         let opcode = self.next_byte();
-
         let src = (ops[opcode as usize].addr)(self);
+        println!("opcode: {:?}, src: {:?}, pc: {:?},", opcode, src, self.r.pc);
         (ops[opcode as usize].code)(self, src);
 
     }
