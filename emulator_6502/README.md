@@ -1,8 +1,9 @@
 ## Dev notes
 
-- put in some debugging tools. Both debugger and print statements.
-- the flags are all messed up. Looks like they're being set wrong from the beginning. This may be independent of other issues.
-- lda zpg op 'a5' is failing to load a properly. Seems like it's not reading the argument correctly. The op is loading a correctly, but with the wrong value.
+- need to move memory around a bit. The stack is overlapping with other things (like the random memory).
+- Also need to feed the random memory.
+- Also there may be a problem with the snake moving forward.
+- Also need to update user input.
 
 
 ## Build and Run
