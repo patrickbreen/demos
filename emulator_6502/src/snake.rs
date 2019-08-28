@@ -99,17 +99,17 @@ impl SnakeApp {
     fn update(&mut self, args: &UpdateArgs) {
         self.cpu.step(self.ops);
 
-        let ten_millis = time::Duration::from_millis(1000);
-        let now = time::Instant::now();
+        // let ten_millis = time::Duration::from_millis(1000);
+        // let now = time::Instant::now();
 
-        thread::sleep(ten_millis);
+        // thread::sleep(ten_millis);
 
     }
 }
 
 
 pub fn play_snake() {
-    let mut rom_file = File::open("snake.bin").unwrap();
+    let mut rom_file = File::open("/home/q/Desktop/demos/emulator_6502/snake.bin").unwrap();
 
     let mut buffer = Vec::new();
     rom_file.read_to_end(&mut buffer).unwrap();

@@ -47,11 +47,18 @@ impl CPU {
     // 3) get argument using addressing mode if applicable
     // 4) execute op
     pub fn step(&mut self, ops: [Instr; 256]) {
+        println!("pc: {:x}, a: {:x}, sp: {:x}", self.r.pc, self.r.a, self.r.s);
         let opcode = self.next_byte();
+        if opcode == 0xa5 {
+            println!("time to debug");
+        }
         let src = (ops[opcode as usize].addr)(self);
-        println!("opcode: {:?}, src: {:?}, pc: {:?},", opcode, src, self.r.pc);
+        println!("opcode: {:x}, src: {:x}", opcode, src);
+        println!("p: {:#b}", self.r.p);
+        println!("---------------------------");
         (ops[opcode as usize].code)(self, src);
 
+        // println!("did instruction");
     }
 
     pub fn next_byte(&mut self) -> u8 {
@@ -69,9 +76,9 @@ impl CPU {
     }
 
     pub fn stack_push(&mut self, val: u8) {
-        self.mmu.write(self.r.stack_page*0x100 + self.r.s as usize, val);
+        self.mmu.write(self.r.s as usize, val);
 
-        // Note: rust will panic instead of wrapping (to safe for school)
+        // Note: rust will panic instead of wrapping (too safe for school)
         if self.r.s == 0 {
             self.r.s = 255;
         } else {
@@ -85,7 +92,7 @@ impl CPU {
     }
 
     pub fn stack_pop(&mut self) -> u8 {
-        let val = self.mmu.read(self.r.stack_page*0x100 + ((self.r.s as usize + 1) & 0xFF));
+        let val = self.mmu.read(((self.r.s as usize + 1) & 0xFF));
         self.r.s = (self.r.s + 1) & 0xFF;
         val
     }

@@ -16,7 +16,6 @@ use cpu::{Instr, CPU, make_cpu};
 //  on values or addresses and target register if valid
 
 fn no_arg(cpu: &mut CPU) -> u16 {
-    cpu.r.pc += 1;
     0
 }
 
