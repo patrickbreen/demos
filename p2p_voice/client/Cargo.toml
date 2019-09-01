@@ -1,7 +1,10 @@
 [package]
 name = "client"
 version = "0.1.0"
-authors = ["q"]
+authors = ["Patrick <breen.patrick.1010@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+sample = "0.7"
+alsa = "0.2"
+clap = "2.20"
