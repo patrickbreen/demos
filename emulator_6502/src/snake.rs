@@ -34,8 +34,8 @@ fn make_snake_cpu(rom_init: Option<Vec<u8>>) -> CPU {
         cpu.r.pc = 0x600;
 
         // since for some reason we're reading 0xff and 0xfe as direct memory access,
-        // have the stack start at 0xfd instead of 0xff
-        cpu.r.s = 0xfe;
+        // have the stack start at 0xfc instead of 0xff
+        cpu.r.s = 0xfc;
         cpu
 }
 
@@ -83,10 +83,10 @@ impl SnakeApp {
         let snakeDirection = ram[2];
         let snakeLength = ram[3];
 
-        // println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
-        // println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
-        // println!("z: {}", self.cpu.r.get_flag('Z'));
-        // println!("x: {}", self.cpu.r.x);
+        println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
+        println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
+        println!("z: {}", self.cpu.r.get_flag('Z'));
+        println!("x: {}", self.cpu.r.x);
 
         // let first_byte = &ram.memory[0x200];
         let start = 0x200;
@@ -109,19 +109,47 @@ impl SnakeApp {
         });
 
         // step the cpu in sync with the render
-        // self.cpu.step(self.ops);
+        self.cpu.step(self.ops);
     }
 
     fn update(&mut self, args: &UpdateArgs) {
+
+        let mut rng = rand::thread_rng();
         
+        for i in 0..10 {
 
-        // TODO: handle input here
-        self.cpu.step(self.ops);
+            // set 0xfe to random byte
+            self.cpu.mmu.blocks[0].memory[0xfe] = rng.gen_range(0, 16);
 
-        // let ten_millis = time::Duration::from_millis(1000);
-        // let now = time::Instant::now();
+            // self.cpu.step(self.ops);
+        }
 
-        // thread::sleep(ten_millis);
+    }
+
+    fn handle_press(&mut self, button: &Button) {
+
+        // apply input on paddle
+        let ram = &mut self.cpu.mmu.blocks[0].memory;
+        match button {
+            Button::Keyboard(Key::Up) => {
+                ram[0xff] = 0x77;
+            }
+
+            Button::Keyboard(Key::Down) => {
+                ram[0xff] = 0x73;
+            }
+
+            Button::Keyboard(Key::Left) => {
+                ram[0xff] = 0x61;
+            }
+
+            Button::Keyboard(Key::Right) => {
+                ram[0xff] = 0x64;
+            }
+            _ => {
+                // println!("this action isn't being handled now");
+            }
+        }
 
     }
 }
@@ -159,6 +187,10 @@ pub fn play_snake() {
 
         if let Some(u) = e.update_args() {
             app.update(&u);
+        }
+
+        if let Some(p) = e.press_args() {
+            app.handle_press(&p);
         }
     }
 

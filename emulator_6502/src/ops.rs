@@ -624,18 +624,18 @@ fn op_rts(cpu: &mut CPU, src: u16) {
 
 fn op_sbc(cpu: &mut CPU, src: u16) {
     let v1 = cpu.r.a as u16;
-    let mut r = 0;
+    let mut r: i32 = 0;
     if cpu.r.get_flag('D') {
         let d1 = cpu.from_bcd(v1);
         let d2 = cpu.from_bcd(src);
-        r = d1 - d2 - (!cpu.r.get_flag('C') as u16);
+        r = d1 as i32 - d2 as i32 - (!cpu.r.get_flag('C') as i32);
     } else {
-        r = v1 - src - (!cpu.r.get_flag('C') as u16);
+        r = v1 as i32 - src as i32 - (!cpu.r.get_flag('C') as i32);
         cpu.r.a = (r & 0xFF) as u8;
     }
 
     cpu.r.set_flag('C', r >= 0);
-    cpu.r.set_flag('V', ((v1 ^ src) & (v1 ^ r) & 0x80) != 0);
+    cpu.r.set_flag('V', ((v1 ^ src) & (v1 as i32 ^ r) as u16 & 0x80) != 0);
     let a = cpu.r.a;
     cpu.r.zn(a);
 }

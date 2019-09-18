@@ -47,12 +47,12 @@ impl CPU {
     // 3) get argument using addressing mode if applicable
     // 4) execute op
     pub fn step(&mut self, ops: [Instr; 256]) {
-        // println!("pc: {:x}, a: {:x}, sp: {:x}", self.r.pc, self.r.a, self.r.s);
+        println!("pc: {:x}, a: {:x}, sp: {:x}", self.r.pc, self.r.a, self.r.s);
         let opcode = self.next_byte();
         let src = (ops[opcode as usize].addr)(self);
-        // println!("opcode: {:x}, src: {:x}", opcode, src);
-        // println!("p: {:#b}", self.r.p);
-        // println!("---------------------------");
+        println!("opcode: {:x}, src: {:x}", opcode, src);
+        println!("p: {:#b}", self.r.p);
+        println!("---------------------------");
         (ops[opcode as usize].code)(self, src);
 
         // println!("did instruction");
