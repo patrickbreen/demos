@@ -35,7 +35,7 @@ fn make_snake_cpu(rom_init: Option<Vec<u8>>) -> CPU {
 
         // since for some reason we're reading 0xff and 0xfe as direct memory access,
         // have the stack start at 0xfd instead of 0xff
-        // cpu.r.s = 0xfe;
+        cpu.r.s = 0xfe;
         cpu
 }
 
@@ -83,10 +83,10 @@ impl SnakeApp {
         let snakeDirection = ram[2];
         let snakeLength = ram[3];
 
-        println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
-        println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
-        println!("z: {}", self.cpu.r.get_flag('Z'));
-        println!("x: {}", self.cpu.r.x);
+        // println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
+        // println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
+        // println!("z: {}", self.cpu.r.get_flag('Z'));
+        // println!("x: {}", self.cpu.r.x);
 
         // let first_byte = &ram.memory[0x200];
         let start = 0x200;
@@ -109,12 +109,14 @@ impl SnakeApp {
         });
 
         // step the cpu in sync with the render
-        self.cpu.step(self.ops);
+        // self.cpu.step(self.ops);
     }
 
     fn update(&mut self, args: &UpdateArgs) {
+        
 
         // TODO: handle input here
+        self.cpu.step(self.ops);
 
         // let ten_millis = time::Duration::from_millis(1000);
         // let now = time::Instant::now();
