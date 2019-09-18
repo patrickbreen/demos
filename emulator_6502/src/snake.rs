@@ -32,14 +32,13 @@ fn make_snake_cpu(rom_init: Option<Vec<u8>>) -> CPU {
 
         let mut cpu = CPU::new(mmu);
         cpu.r.pc = 0x600;
+
+        // since for some reason we're reading 0xff and 0xfe as direct memory access,
+        // have the stack start at 0xfd instead of 0xff
+        // cpu.r.s = 0xfe;
         cpu
 }
 
-// TODO
-// init the cpu
-// render (draw out all the pixels)
-// step the cpu
-// update(poll for input)
 
 pub struct SnakeApp {
     gl: GlGraphics,
@@ -73,7 +72,21 @@ impl SnakeApp {
             ORANGE, BROWN, LIGHT_RED, DARK_GREY, GREY, LIGHT_GREEN, LIGHT_BLUE, LIGHT_GREY];
 
         // access the memory
-        let ram = &self.cpu.mmu.blocks[0];
+        let ram = &self.cpu.mmu.blocks[0].memory.clone();
+
+        // Print out key global variables
+        let appleL = ram[0];
+        let appleH = ram[1];
+        let snakeHeadL = ram[16];
+        let snakeHeadH = ram[17];
+        let snakeBodyStart = ram[18];
+        let snakeDirection = ram[2];
+        let snakeLength = ram[3];
+
+        println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
+        println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
+        println!("z: {}", self.cpu.r.get_flag('Z'));
+        println!("x: {}", self.cpu.r.x);
 
         // let first_byte = &ram.memory[0x200];
         let start = 0x200;
@@ -87,17 +100,21 @@ impl SnakeApp {
             let mut i = 0;
             for j in 0..32 {
                 for k in 0..32 {
-                    let next_byte = &ram.memory[start + i];
+                    let next_byte = &ram[start + i];
                     let transform = c.transform.trans(10.0*j as f64, 10.0*k as f64);
                     rectangle(colors[*next_byte as usize], square, transform, gl);
                     i += 1;
                 }
             }
         });
+
+        // step the cpu in sync with the render
+        self.cpu.step(self.ops);
     }
 
     fn update(&mut self, args: &UpdateArgs) {
-        self.cpu.step(self.ops);
+
+        // TODO: handle input here
 
         // let ten_millis = time::Duration::from_millis(1000);
         // let now = time::Instant::now();
