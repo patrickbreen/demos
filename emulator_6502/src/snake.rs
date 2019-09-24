@@ -83,12 +83,6 @@ impl SnakeApp {
         let snakeDirection = ram[2];
         let snakeLength = ram[3];
 
-        println!("appleL: {}, appleH: {}, snakeHeadL: {}, snakeHeadH: {}", appleL, appleH, snakeHeadL, snakeHeadH);
-        println!("snakeBodyStart: {}, snakeDirection: {}, snakeLength: {}", snakeBodyStart, snakeDirection, snakeLength);
-        println!("z: {}", self.cpu.r.get_flag('Z'));
-        println!("x: {}", self.cpu.r.x);
-
-        // let first_byte = &ram.memory[0x200];
         let start = 0x200;
 
         let square = rectangle::square(0.0, 0.0, 10.0);
@@ -101,27 +95,24 @@ impl SnakeApp {
             for j in 0..32 {
                 for k in 0..32 {
                     let next_byte = &ram[start + i];
-                    let transform = c.transform.trans(10.0*j as f64, 10.0*k as f64);
+                    let transform = c.transform.trans(10.0*k as f64, 10.0*j as f64);
                     rectangle(colors[*next_byte as usize], square, transform, gl);
                     i += 1;
                 }
             }
         });
-
-        // step the cpu in sync with the render
-        self.cpu.step(self.ops);
     }
 
     fn update(&mut self, args: &UpdateArgs) {
 
         let mut rng = rand::thread_rng();
         
-        for i in 0..10 {
+        for i in 0..15 {
 
             // set 0xfe to random byte
             self.cpu.mmu.blocks[0].memory[0xfe] = rng.gen_range(0, 16);
 
-            // self.cpu.step(self.ops);
+            self.cpu.step(self.ops);
         }
 
     }

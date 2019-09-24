@@ -844,7 +844,7 @@ mod tests {
         assert_eq!(cpu.r.get_flag('I'), true);
         assert_eq!(cpu.r.pc, 0x1234);
         assert_eq!(cpu.stack_pop(), 255);
-        assert_eq!(cpu.stack_pop_word(), 0x1001);
+        assert_eq!(cpu.stack_pop_word(), 0x1000);
     }
 
     #[test]
