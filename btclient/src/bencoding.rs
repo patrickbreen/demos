@@ -3,7 +3,7 @@
 //
 // This file parses .torrent files
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 use std::convert::From;
 
 
@@ -12,7 +12,7 @@ fn encode_int(i: &i64) -> Vec<u8> {
 
     let mut ret: Vec<u8> = Vec::new();
     ret.push(b'i');
-    ret.append(&mut i.to_ne_bytes().to_vec());
+    ret.append(&mut i.to_string().as_bytes().to_vec());
     ret.push(b'e');
 
     return ret;
@@ -36,7 +36,7 @@ fn encode_list(data: &Vec<Box<Encodable>>) -> Vec<u8> {
    ret
 }
 
-fn encode_dict(data: &HashMap<String, Box<Encodable>>) -> Vec<u8> {
+fn encode_dict(data: &BTreeMap<String, Box<Encodable>>) -> Vec<u8> {
 
     let mut ret = Vec::new();
     ret.push(b'd');
@@ -47,8 +47,7 @@ fn encode_dict(data: &HashMap<String, Box<Encodable>>) -> Vec<u8> {
     }
 
     ret.push(b'e');
-
-    return Vec::new();
+    ret
 }
 
 //    fn encode_bytes(&self) {
@@ -76,7 +75,7 @@ impl Encodable for Vec<Box<Encodable>> {
     }
 }
 
-impl Encodable for HashMap<String, Box<Encodable>> {
+impl Encodable for BTreeMap<String, Box<Encodable>> {
     fn encode(&self) -> Vec<u8> {
         encode_dict(self)
     }
@@ -126,7 +125,7 @@ pub struct Decoded {
     sval: Option<String>,
     int: Option<i64>,
     list: Option<Vec<Decoded>>,
-    dict: Option<HashMap<String, Decoded>>,
+    dict: Option<BTreeMap<String, Decoded>>,
 }
 
 
@@ -235,7 +234,7 @@ impl Decoder {
     }
 
     fn decode_dict(&mut self) -> Option<Decoded> {
-        let mut res = HashMap::new();
+        let mut res = BTreeMap::new();
         while self.data[self.index] != b'e' {
             let key = self.decode().unwrap().sval.unwrap();
             let val = self.decode().unwrap();
@@ -355,7 +354,43 @@ mod tests {
     
 
     // ENCODING TESTS
-    // TODO
 
+    #[test]
+    fn test_encode_integer() {
+        let res = Encoder::new(Box::new(1234)).encode();
+        assert_eq!(b"i1234e".to_vec(), res);
+    }
+
+    #[test]
+    fn test_encode_string() {
+        let res = Encoder::new(Box::new("blah".to_string())).encode();
+        assert_eq!(b"4:blah".to_vec(), res);
+    }
+
+    #[test]
+    fn test_encode_list() {
+        let l: Vec<Box<Encodable>> = vec![Box::new("potato".to_string()), Box::new("carrot".to_string()), Box::new(1234) ];
+        let res = Encoder::new(Box::new(l)).encode();
+        assert_eq!(b"l6:potato6:carroti1234ee".to_vec(), res);
+    }
+ 
+    #[test]
+    fn test_encode_dict() {
+        let mut d: BTreeMap<String,Box<Encodable>> = BTreeMap::new();
+        d.insert("key1".to_string(), Box::new("carrot".to_string()));
+        d.insert("key2".to_string(), Box::new(1234));
+        let res = Encoder::new(Box::new(d)).encode();
+        assert_eq!(b"d4:key16:carrot4:key2i1234ee".to_vec(), res);
+    }
+
+    #[test]
+    fn test_nested() {
+        let l: Vec<Box<Encodable>> = vec![Box::new("potato".to_string()), Box::new("carrot".to_string()), Box::new(1234) ];
+        let mut d: BTreeMap<String,Box<Encodable>> = BTreeMap::new();
+        d.insert("key1".to_string(), Box::new("carrot".to_string()));
+        d.insert("key2".to_string(), Box::new(l));
+        let res = Encoder::new(Box::new(d)).encode();
+        assert_eq!(b"d4:key16:carrot4:key2l6:potato6:carroti1234eee".to_vec(), res);
+    }
 
 }
