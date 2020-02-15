@@ -88,9 +88,11 @@ pub fn encode_decoded(data: &Decoded) -> Vec<u8> {
         "i64" => ret.append(&mut data.int.unwrap().encode()),
         "list" => {
             let list = data.list.as_ref().unwrap();
+            ret.push(b'l');
             for elem in list {
                 ret.append(&mut encode_decoded(elem));
             }
+            ret.push(b'e');
         },
         "dict" => {
             let dict = data.dict.as_ref().unwrap();
@@ -421,5 +423,16 @@ mod tests {
         let res = Encoder::new(Box::new(d)).encode();
         assert_eq!(b"d4:key16:carrot4:key2l6:potato6:carroti1234eee".to_vec(), res);
     }
+
+    #[test]
+    fn test_round_trip() {
+        let original = b"l4:spam4:eggsi1234ee";
+        let decoded = Decoder::new(original.to_vec()).decode().unwrap();
+        let encoded = encode_decoded(&decoded);
+
+        assert_eq!(original.to_vec(), encoded);
+
+    }
+
 
 }
