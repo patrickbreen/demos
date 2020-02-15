@@ -4,7 +4,6 @@
 // This file parses .torrent files
 
 use std::collections::BTreeMap;
-use std::convert::From;
 
 
 // ENCODER
@@ -81,6 +80,36 @@ impl Encodable for BTreeMap<String, Box<Encodable>> {
     }
 }
 
+pub fn encode_decoded(data: &Decoded) -> Vec<u8> {
+    let mut ret = Vec::new();
+    
+    match data.type_name.as_str() {
+        "string" => ret.append(&mut data.sval.as_ref().unwrap().encode()),
+        "i64" => ret.append(&mut data.int.unwrap().encode()),
+        "list" => {
+            let list = data.list.as_ref().unwrap();
+            for elem in list {
+                ret.append(&mut encode_decoded(elem));
+            }
+        },
+        "dict" => {
+            let dict = data.dict.as_ref().unwrap();
+            ret.push(b'd');
+
+            for (k, v) in dict {
+                ret.append(&mut k.encode());
+                ret.append(&mut encode_decoded(v));
+            }
+
+            ret.push(b'e');
+ 
+        },
+        _ => panic!("unknown type_name"),
+    }
+
+    ret
+}
+
 
 pub struct Encoder {
     data: Box<Encodable>,
@@ -121,11 +150,11 @@ pub struct Decoder {
 }
 
 pub struct Decoded {
-    type_name: String,
-    sval: Option<String>,
-    int: Option<i64>,
-    list: Option<Vec<Decoded>>,
-    dict: Option<BTreeMap<String, Decoded>>,
+    pub type_name: String,
+    pub sval: Option<String>,
+    pub int: Option<i64>,
+    pub list: Option<Vec<Decoded>>,
+    pub dict: Option<BTreeMap<String, Decoded>>,
 }
 
 

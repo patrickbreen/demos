@@ -1,7 +1,9 @@
+extern crate crypto;
 
 mod bencoding;
 mod torrent;
 mod client;
+mod tracker;
 
 
 use torrent::Torrent;
