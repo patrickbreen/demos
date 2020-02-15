@@ -148,11 +148,19 @@ impl Decoder {
             Some(b'e') => {
                 return None
             },
+            Some(b'l') => {
+                self.consume();
+                return self.decode_list();
+            },
+            Some(b'd') => {
+                self.consume();
+                return self.decode_dict();
+            },
             Some(c) => {
                 if b'0' <= c && c  <= b'9' {
                     return self.decode_string();
                 } else {
-                    return None;
+                    panic!("invalid token at {}", self.index);
                 }
             }
         }
@@ -169,11 +177,13 @@ impl Decoder {
         self.index += 1;
     }
 
-    fn read(&self, len: usize) -> Option<Vec<u8>> {
+    fn read(&mut self, len: usize) -> Option<Vec<u8>> {
         if self.index + len > self.data.len() {
-            return None;
+            panic!("tried to read beyond data");
         }
-        Some(self.data[self.index..(self.index+len)].to_vec())
+        let res = Some(self.data[self.index..(self.index+len)].to_vec());
+        self.index += len;
+        res
     }
 
     fn read_until(&mut self, token: u8) -> Option<Vec<u8>> {
@@ -182,7 +192,7 @@ impl Decoder {
             if *elem == token {
                 let occurence = local_index;
                 let result = &self.data[self.index..occurence];
-                self.index += occurence + 1;
+                self.index += (occurence - self.index) + 1;
                 return Some(result.to_vec());
             } else {
                 local_index += 1;
@@ -200,7 +210,6 @@ impl Decoder {
         let vec = read.unwrap();
         let i: i64 = String::from_utf8(vec).unwrap().parse().unwrap();
 
-
         Some(Decoded {
             type_name: "i64".to_string(),
             sval: None,
@@ -208,22 +217,45 @@ impl Decoder {
             list: None,
             dict: None
         })
-
     }
 
-    fn decode_list(&self) -> Vec<Decoded> {
-        Vec::new()
+    fn decode_list(&mut self) -> Option<Decoded> {
+        let mut ret = Vec::new();
+        while self.data[self.index] != b'e' {
+            ret.push(self.decode().unwrap());
+        }
+        self.consume();
+        Some(Decoded {
+            type_name: "list".to_string(),
+            sval: None,
+            int: None,
+            list: Some(ret),
+            dict: None
+        })
     }
 
-    fn decode_dict(&self) -> HashMap<String, Decoded> {
-        HashMap::new()
+    fn decode_dict(&mut self) -> Option<Decoded> {
+        let mut res = HashMap::new();
+        while self.data[self.index] != b'e' {
+            let key = self.decode().unwrap().sval.unwrap();
+            let val = self.decode().unwrap();
+            res.insert(key, val);
+        }
+        self.consume();
+
+        Some(Decoded {
+            type_name: "dict".to_string(),
+            sval: None,
+            int: None,
+            list: None,
+            dict: Some(res)
+        })
     }
 
     fn decode_string(&mut self) -> Option<Decoded> {
         let vec = self.read_until(b':').unwrap();
         let len: usize = String::from_utf8(vec).unwrap().parse().unwrap();
         let data = self.read(len).unwrap();
-
         let sval = String::from_utf8(data).unwrap();
 
         Some(Decoded {
@@ -234,9 +266,7 @@ impl Decoder {
             dict: None
         })
     }
-
 }
-
 
 
 
@@ -299,17 +329,33 @@ mod tests {
 
     #[test]
     fn test_string_with_space() {
-        let res = Decoder::new(b"11:hello world".to_vec()).decode().unwrap();
-        assert!(res.sval == Some("hello world".to_string()));
+        let mut decoder = Decoder::new(b"11:hello world".to_vec());
+        let res = decoder.decode().unwrap();
+        assert_eq!(res.sval, Some("hello world".to_string()));
+        assert_eq!(decoder.index, 14);
     }
 
-    // test list
-    
+    #[test]
+    fn test_list() {
+        let res = Decoder::new(b"l4:spam4:eggsi1234ee".to_vec()).decode().unwrap();
+        let list = res.list.unwrap();
+        assert_eq!(list.len(), 3);
+        assert_eq!(list[0].sval.as_ref(), Some(&"spam".to_string()));
+        assert_eq!(list[1].sval.as_ref(), Some(&"eggs".to_string()));
+        assert_eq!(list[2].int, Some(1234));
+    }
 
-    // test dict
+    #[test]
+    fn test_dict() {
+        let res = Decoder::new(b"d4:key16:value14:key26:value2e".to_vec()).decode().unwrap();
+        let dict = res.dict.unwrap();
+        assert_eq!(dict.len(), 2);
+        assert_eq!(dict.get("key1").unwrap().sval.as_ref(), Some(&"value1".to_string()));
+    }
     
 
     // ENCODING TESTS
+    // TODO
 
 
 }
