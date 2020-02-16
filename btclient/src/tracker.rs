@@ -7,82 +7,148 @@
 // Tracker
 // TrackerResponse
 //
+
+extern crate rand;
+extern crate url;
+
+use std::str;
 use std::collections::BTreeMap;
+
+use rand::Rng;
+use url::form_urlencoded;
+
+use crate::bencoding::Decoded;
+use crate::torrent::Torrent;
 
 
 pub struct TrackerResponse {
-    response: BTreeMap<String, String>,
+    response: BTreeMap<Vec<u8>, Decoded>,
 }
 
 impl TrackerResponse {
-    pub fn new(response: BTreeMap<String, String>) -> TrackerResponse {
+    pub fn new(response: BTreeMap<Vec<u8>, Decoded>) -> TrackerResponse {
         TrackerResponse {response: response}
     }
-    pub fn failure(&self) -> Option<String> {
-        if self.response.contains_key("failure_response") {
-            return Some(self.response.get("failure_response").unwrap().to_string());
+    pub fn failure(&self) -> Option<Vec<u8>> {
+        if self.response.contains_key(&b"failure_response".to_vec()) {
+            return Some(self.response.get(&b"failure_response".to_vec()).unwrap().bytes.as_ref().unwrap().to_vec());
         }
         None
     }
-    fn get_or_0(&self, key: &str) -> u64 {
+    fn get_or_0(&self, key: &[u8]) -> u64 {
         let s = self.response.get(key);
         if s.is_none() {
             return 0;
         }
-        s.unwrap().parse().unwrap()
+        s.unwrap().int.unwrap() as u64
     }
     pub fn interval(&self) -> u64 {
-        self.get_or_0("interval")
+        self.get_or_0(b"interval")
     }
     pub fn complete(&self) -> u64 {
-        self.get_or_0("complete")
+        self.get_or_0(b"complete")
     }
     pub fn incomplete(&self) -> u64 {
-        self.get_or_0("incomplete")
+        self.get_or_0(b"incomplete")
     }
-    pub fn peers(&self) -> Vec<(String, u64)> {
-        let s = self.response.get("peers").unwrap();
+    pub fn peers(&self) -> Vec<(String, u16)> {
+        let peers = self.response.get(&b"peers".to_vec()).unwrap();
 
-        let raw_peers: Vec<&str> = s.split(",").collect();
-        let mut formatted_peers: Vec<(String, u64)> = Vec::new();
-
-        for peer in raw_peers {
-            let attrs: Vec<&str> = peer.split(":").collect();
-            let ip_addr = attrs.get(0).unwrap().to_string();
-            let port: u64 = attrs.get(0).unwrap().parse().unwrap();
-            formatted_peers.push((ip_addr, port));
+        if peers.type_name == "list" {
+            panic!("No implementation for multifile.");
         }
+
+        let raw_peers: Vec<u8> = peers.bytes.as_ref().unwrap().to_vec();
+        let formatted_peers: Vec<(String, u16)> = TrackerResponse::format_peers(raw_peers);
         formatted_peers
     }
+
     pub fn to_string(&self) -> String {
-        format!("incomplete: ")
+        // TODO
+        format!("incomplete: TODO")
+    }
+
+    fn format_peers(raw_peers: Vec<u8>) -> Vec<(String, u16)> {
+        let mut ret = Vec::new();
+        let mut i = 0;
+        while i + 8 < raw_peers.len() {
+            let ip_bytes = &raw_peers[i..i+4];
+            let mut str_bytes: Vec<String> = Vec::new();
+            for byte in ip_bytes {
+                str_bytes.push(str::from_utf8(&[*byte]).unwrap().to_string());
+            }
+            let ip = str_bytes.connect(":");
+
+
+            let port_bytes = &raw_peers[i+4..i+6];
+            let port : u16 = port_bytes[0] as u16 * port_bytes[1] as u16;
+
+
+            ret.push((ip, port));
+            i += 6;
+        }
+
+        ret
     }
 }
 
-pub struct Tracker {}
+pub struct Tracker {
+    torrent: Torrent,
+    peer_id: Vec<u8>,
+    // TODO http client
+}
 
 impl Tracker {
-    pub fn new() -> Tracker {
-        Tracker {}
+    pub fn new(torrent: Torrent) -> Tracker {
+        Tracker {
+            torrent: torrent,
+            peer_id: Tracker::calculate_peer_id(),
+            // TODO http client
+        }
     }
-    pub fn connect(&self) -> TrackerResponse {
+    pub fn connect(&self, uploaded: usize, downloaded: usize, first: bool) -> TrackerResponse {
+        
+        let encoded_params: String = form_urlencoded::Serializer::new(String::new())
+            .append_pair("info_hash", str::from_utf8(&self.torrent.info_hash).unwrap())
+            .append_pair("peer_id", str::from_utf8(&self.peer_id).unwrap())
+            .append_pair("port", "6889")
+            .append_pair("uploaded", &uploaded.to_string())
+            .append_pair("downloaded", &downloaded.to_string())
+            .append_pair("left", &(self.torrent.total_size() - downloaded).to_string())
+            .append_pair("compact", "1")
+            .finish();
+        let encoded_event: String = form_urlencoded::Serializer::new(String::new())
+            .append_pair("event", "started")
+            .finish();
+
+        let mut url = str::from_utf8(&self.torrent.announce()).unwrap().to_string() + "?" + &encoded_params;
+
+        if first {
+            url += &encoded_event;
+        }
+
+        // TODO make GET request
+
         TrackerResponse::new(BTreeMap::new())
     }
     pub fn close(&self) {
+        // TODO close the http client
     }
     pub fn raise_for_error(&self) {
+        // TODO search for 'failure' in message
         panic!("error");
     }
-    fn construct_tracker_parameters(&self) {
+ 
+    fn calculate_peer_id() -> Vec<u8> {
+        let mut vec = b"-PC0001-".to_vec();
+        let mut rng = rand::thread_rng();
+
+        for i in 0..12 {
+            let n = rng.gen_range(48, 58);
+            vec.push(n);
+        }
+        vec
     }
-}
-
-fn calculate_peer_id() -> [u8;20] {
-    [0; 20]
-}
-
-fn decode_port(port: [u8;4]) -> u32 {
-    0
 }
 
 
@@ -96,6 +162,8 @@ mod tests {
     }
 
     fn test_tracker() {
-        let tracker = Tracker::new();
+        // smoke test
+        let torrent = Torrent::new(b"data/ubuntu-18.04.3-desktop-amd64.iso.torrent".to_vec());
+        let tracker = Tracker::new(torrent);
     }
 }

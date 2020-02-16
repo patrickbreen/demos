@@ -14,11 +14,11 @@ use crate::bencoding::{Decoded, Decoder, Encoder, encode_decoded};
 
 
 pub struct Torrent {
-    filename: Vec<u8>,
-    meta_info: BTreeMap<Vec<u8>, Decoded>,
-    info_hash: Vec<u8>,
-    name: Vec<u8>,
-    length: usize,
+    pub filename: Vec<u8>,
+    pub meta_info: BTreeMap<Vec<u8>, Decoded>,
+    pub info_hash: Vec<u8>,
+    pub name: Vec<u8>,
+    pub length: usize,
 }
 
 
@@ -76,6 +76,7 @@ impl Torrent {
     }
     pub fn to_string(&self) -> String {
         // TODO
+        panic!("TODO");
         "".to_string()
     }
 }

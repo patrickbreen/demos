@@ -6,14 +6,30 @@
 use std::str;
 use std::collections::BTreeMap;
 
+// start of integer
+const TOKEN_INTEGER: u8 = b'i';
+
+// start of list
+const TOKEN_LIST: u8 = b'l';
+
+// start of dict
+const TOKEN_DICT: u8 = b'd';
+
+// end of lists, dicts, and integers
+const TOKEN_END: u8 = b'e';
+
+// delimits the string length from data
+const TOKEN_STRING_SEPERATOR: u8 = b':';
+
+
 
 // ENCODER
 fn encode_int(i: &i64) -> Vec<u8> {
 
     let mut ret: Vec<u8> = Vec::new();
-    ret.push(b'i');
+    ret.push(TOKEN_INTEGER);
     ret.append(&mut i.to_string().as_bytes().to_vec());
-    ret.push(b'e');
+    ret.push(TOKEN_END);
 
     return ret;
 }
@@ -27,33 +43,33 @@ fn encode_string(value: &String) -> Vec<u8> {
 
 fn encode_list(data: &Vec<Box<Encodable>>) -> Vec<u8> {
    let mut ret: Vec<u8> = Vec::new();
-   ret.push(b'l');
+   ret.push(TOKEN_LIST);
    for dat in data {
        let mut encoded = dat.encode();
        ret.append(&mut encoded);
    }
-   ret.push(b'e');
+   ret.push(TOKEN_END);
    ret
 }
 
 fn encode_dict(data: &BTreeMap<Vec<u8>, Box<Encodable>>) -> Vec<u8> {
 
     let mut ret = Vec::new();
-    ret.push(b'd');
+    ret.push(TOKEN_DICT);
 
     for (k, v) in data {
         ret.append(&mut k.encode());
         ret.append(&mut v.encode());
     }
 
-    ret.push(b'e');
+    ret.push(TOKEN_END);
     ret
 }
 
 fn encode_bytes(value: &Vec<u8>) -> Vec<u8> {
     let mut copy = value.clone();
     let mut ret: Vec<u8> = copy.len().to_string().as_bytes().to_vec();
-    ret.append(&mut b":".to_vec());
+    ret.push(TOKEN_STRING_SEPERATOR);
     ret.append(&mut copy);
     ret
 
@@ -101,22 +117,22 @@ pub fn encode_decoded(data: &Decoded) -> Vec<u8> {
         "i64" => ret.append(&mut data.int.unwrap().encode()),
         "list" => {
             let list = data.list.as_ref().unwrap();
-            ret.push(b'l');
+            ret.push(TOKEN_LIST);
             for elem in list {
                 ret.append(&mut encode_decoded(elem));
             }
-            ret.push(b'e');
+            ret.push(TOKEN_END);
         },
         "dict" => {
             let dict = data.dict.as_ref().unwrap();
-            ret.push(b'd');
+            ret.push(TOKEN_DICT);
 
             for (k, v) in dict {
                 ret.append(&mut k.encode());
                 ret.append(&mut encode_decoded(v));
             }
 
-            ret.push(b'e');
+            ret.push(TOKEN_END);
  
         },
         _ => panic!("unknown type_name"),
@@ -141,21 +157,6 @@ impl Encoder {
 }
 
 // DECODER
-
-// start of integer
-const TOKEN_INTEGER: &'static [u8; 1] = b"i";
-
-// start of list
-const TOKEN_LIST: &'static [u8; 1] = b"l";
-
-// start of dict
-const TOKEN_DICT: &'static [u8; 1] = b"d";
-
-// end of lists, dicts, and integers
-const TOKEN_END: &'static [u8; 1] = b"e";
-
-// delimits the string length from data
-const TOKEN_STRING_SEPERATOR: &'static [u8; 1] = b":";
 
 
 #[derive(Debug)]
@@ -184,18 +185,18 @@ impl Decoder {
 
         match c {
             None => return None,
-            Some(b'i') => {
+            Some(TOKEN_INTEGER) => {
                 self.consume();
                 return self.decode_int();
             },
-            Some(b'e') => {
+            Some(TOKEN_END) => {
                 return None
             },
-            Some(b'l') => {
+            Some(TOKEN_LIST) => {
                 self.consume();
                 return self.decode_list();
             },
-            Some(b'd') => {
+            Some(TOKEN_DICT) => {
                 self.consume();
                 return self.decode_dict();
             },
@@ -245,7 +246,7 @@ impl Decoder {
     }
 
     fn decode_int(&mut self) -> Option<Decoded> {
-        let read = self.read_until(b'e');
+        let read = self.read_until(TOKEN_END);
 
         if read == None {
             return None;
@@ -264,7 +265,7 @@ impl Decoder {
 
     fn decode_list(&mut self) -> Option<Decoded> {
         let mut ret = Vec::new();
-        while self.data[self.index] != b'e' {
+        while self.data[self.index] != TOKEN_END {
             ret.push(self.decode().unwrap());
         }
         self.consume();
@@ -279,7 +280,7 @@ impl Decoder {
 
     fn decode_dict(&mut self) -> Option<Decoded> {
         let mut res = BTreeMap::new();
-        while self.data[self.index] != b'e' {
+        while self.data[self.index] != TOKEN_END {
             let key = self.decode().unwrap().bytes.unwrap();
             let val = self.decode().unwrap();
             res.insert(key, val);
@@ -296,7 +297,7 @@ impl Decoder {
     }
 
     fn decode_bytes(&mut self) -> Option<Decoded> {
-        let vec = self.read_until(b':').unwrap();
+        let vec = self.read_until(TOKEN_STRING_SEPERATOR).unwrap();
         let len: usize = str::from_utf8(&vec).unwrap().parse().unwrap();
         let data = self.read(len).unwrap();
 

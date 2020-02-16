@@ -8,3 +8,5 @@ edition = "2018"
 
 [dependencies]
 rust-crypto = "0.2.36"
+rand = "0.7.3"
+url = "2.1.1"
