@@ -4,11 +4,11 @@ https://github.com/eliasson/pieces
 
 
 # Order of doing things
- - bencoding
- - protocol
- - tracker
- - client
- - torrent
+ - [x] bencoding
+ - [3] protocol
+ - [2] tracker
+ - [4] client
+ - [1] torrent - TODO finish to\_string() and test
 
 
 

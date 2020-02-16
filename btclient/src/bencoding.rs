@@ -3,6 +3,7 @@
 //
 // This file parses .torrent files
 
+use std::str;
 use std::collections::BTreeMap;
 
 
@@ -35,7 +36,7 @@ fn encode_list(data: &Vec<Box<Encodable>>) -> Vec<u8> {
    ret
 }
 
-fn encode_dict(data: &BTreeMap<String, Box<Encodable>>) -> Vec<u8> {
+fn encode_dict(data: &BTreeMap<Vec<u8>, Box<Encodable>>) -> Vec<u8> {
 
     let mut ret = Vec::new();
     ret.push(b'd');
@@ -49,8 +50,14 @@ fn encode_dict(data: &BTreeMap<String, Box<Encodable>>) -> Vec<u8> {
     ret
 }
 
-//    fn encode_bytes(&self) {
-//    }
+fn encode_bytes(value: &Vec<u8>) -> Vec<u8> {
+    let mut copy = value.clone();
+    let mut ret: Vec<u8> = copy.len().to_string().as_bytes().to_vec();
+    ret.append(&mut b":".to_vec());
+    ret.append(&mut copy);
+    ret
+
+}
 
 trait Encodable {
     fn encode(&self) -> Vec<u8>;
@@ -68,13 +75,19 @@ impl Encodable for String {
     }
 }
 
+impl Encodable for Vec<u8> {
+    fn encode(&self) -> Vec<u8> {
+        encode_bytes(self)
+    }
+}
+
 impl Encodable for Vec<Box<Encodable>> {
     fn encode(&self) -> Vec<u8> {
         encode_list(self)
     }
 }
 
-impl Encodable for BTreeMap<String, Box<Encodable>> {
+impl Encodable for BTreeMap<Vec<u8>, Box<Encodable>> {
     fn encode(&self) -> Vec<u8> {
         encode_dict(self)
     }
@@ -84,7 +97,7 @@ pub fn encode_decoded(data: &Decoded) -> Vec<u8> {
     let mut ret = Vec::new();
     
     match data.type_name.as_str() {
-        "string" => ret.append(&mut data.sval.as_ref().unwrap().encode()),
+        "bytes" => ret.append(&mut data.bytes.as_ref().unwrap().encode()),
         "i64" => ret.append(&mut data.int.unwrap().encode()),
         "list" => {
             let list = data.list.as_ref().unwrap();
@@ -153,10 +166,10 @@ pub struct Decoder {
 
 pub struct Decoded {
     pub type_name: String,
-    pub sval: Option<String>,
+    pub bytes: Option<Vec<u8>>,
     pub int: Option<i64>,
     pub list: Option<Vec<Decoded>>,
-    pub dict: Option<BTreeMap<String, Decoded>>,
+    pub dict: Option<BTreeMap<Vec<u8>, Decoded>>,
 }
 
 
@@ -188,7 +201,7 @@ impl Decoder {
             },
             Some(c) => {
                 if b'0' <= c && c  <= b'9' {
-                    return self.decode_string();
+                    return self.decode_bytes();
                 } else {
                     panic!("invalid token at {}", self.index);
                 }
@@ -242,7 +255,7 @@ impl Decoder {
 
         Some(Decoded {
             type_name: "i64".to_string(),
-            sval: None,
+            bytes: None,
             int: Some(i),
             list: None,
             dict: None
@@ -257,7 +270,7 @@ impl Decoder {
         self.consume();
         Some(Decoded {
             type_name: "list".to_string(),
-            sval: None,
+            bytes: None,
             int: None,
             list: Some(ret),
             dict: None
@@ -267,7 +280,7 @@ impl Decoder {
     fn decode_dict(&mut self) -> Option<Decoded> {
         let mut res = BTreeMap::new();
         while self.data[self.index] != b'e' {
-            let key = self.decode().unwrap().sval.unwrap();
+            let key = self.decode().unwrap().bytes.unwrap();
             let val = self.decode().unwrap();
             res.insert(key, val);
         }
@@ -275,22 +288,21 @@ impl Decoder {
 
         Some(Decoded {
             type_name: "dict".to_string(),
-            sval: None,
+            bytes: None,
             int: None,
             list: None,
             dict: Some(res)
         })
     }
 
-    fn decode_string(&mut self) -> Option<Decoded> {
+    fn decode_bytes(&mut self) -> Option<Decoded> {
         let vec = self.read_until(b':').unwrap();
-        let len: usize = String::from_utf8(vec).unwrap().parse().unwrap();
+        let len: usize = str::from_utf8(&vec).unwrap().parse().unwrap();
         let data = self.read(len).unwrap();
-        let sval = String::from_utf8(data).unwrap();
 
         Some(Decoded {
-            type_name: "string".to_string(),
-            sval: Some(sval),
+            type_name: "bytes".to_string(),
+            bytes: Some(data),
             int: None,
             list: None,
             dict: None
@@ -334,7 +346,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_string() {
+    fn test_empty_bytes() {
         let res = Decoder::new(b"".to_vec()).decode();
         assert!(res.is_none());
     }
@@ -346,22 +358,22 @@ mod tests {
     }
 
     #[test]
-    fn test_string() {
+    fn test_bytes() {
         let res = Decoder::new(b"4:name".to_vec()).decode().unwrap();
-        assert!(res.sval == Some("name".to_string()));
+        assert!(res.bytes == Some(b"name".to_vec()));
     }
 
     #[test]
-    fn test_min_string() {
+    fn test_min_bytes() {
         let res = Decoder::new(b"1:a".to_vec()).decode().unwrap();
-        assert!(res.sval == Some("a".to_string()));
+        assert!(res.bytes == Some(b"a".to_vec()));
     }
 
     #[test]
     fn test_string_with_space() {
         let mut decoder = Decoder::new(b"11:hello world".to_vec());
         let res = decoder.decode().unwrap();
-        assert_eq!(res.sval, Some("hello world".to_string()));
+        assert_eq!(res.bytes, Some(b"hello world".to_vec()));
         assert_eq!(decoder.index, 14);
     }
 
@@ -370,8 +382,8 @@ mod tests {
         let res = Decoder::new(b"l4:spam4:eggsi1234ee".to_vec()).decode().unwrap();
         let list = res.list.unwrap();
         assert_eq!(list.len(), 3);
-        assert_eq!(list[0].sval.as_ref(), Some(&"spam".to_string()));
-        assert_eq!(list[1].sval.as_ref(), Some(&"eggs".to_string()));
+        assert_eq!(list[0].bytes.as_ref().unwrap(), &b"spam".to_vec());
+        assert_eq!(list[1].bytes.as_ref().unwrap(), &b"eggs".to_vec());
         assert_eq!(list[2].int, Some(1234));
     }
 
@@ -380,7 +392,7 @@ mod tests {
         let res = Decoder::new(b"d4:key16:value14:key26:value2e".to_vec()).decode().unwrap();
         let dict = res.dict.unwrap();
         assert_eq!(dict.len(), 2);
-        assert_eq!(dict.get("key1").unwrap().sval.as_ref(), Some(&"value1".to_string()));
+        assert_eq!(dict.get(&b"key1".to_vec()).unwrap().bytes.as_ref().unwrap(), &b"value1".to_vec());
     }
     
 
@@ -394,22 +406,22 @@ mod tests {
 
     #[test]
     fn test_encode_string() {
-        let res = Encoder::new(Box::new("blah".to_string())).encode();
+        let res = Encoder::new(Box::new(b"blah".to_vec())).encode();
         assert_eq!(b"4:blah".to_vec(), res);
     }
 
     #[test]
     fn test_encode_list() {
-        let l: Vec<Box<Encodable>> = vec![Box::new("potato".to_string()), Box::new("carrot".to_string()), Box::new(1234) ];
+        let l: Vec<Box<Encodable>> = vec![Box::new(b"potato".to_vec()), Box::new(b"carrot".to_vec()), Box::new(1234) ];
         let res = Encoder::new(Box::new(l)).encode();
         assert_eq!(b"l6:potato6:carroti1234ee".to_vec(), res);
     }
  
     #[test]
     fn test_encode_dict() {
-        let mut d: BTreeMap<String,Box<Encodable>> = BTreeMap::new();
-        d.insert("key1".to_string(), Box::new("carrot".to_string()));
-        d.insert("key2".to_string(), Box::new(1234));
+        let mut d: BTreeMap<Vec<u8>,Box<Encodable>> = BTreeMap::new();
+        d.insert(b"key1".to_vec(), Box::new(b"carrot".to_vec()));
+        d.insert(b"key2".to_vec(), Box::new(1234));
         let res = Encoder::new(Box::new(d)).encode();
         assert_eq!(b"d4:key16:carrot4:key2i1234ee".to_vec(), res);
     }
@@ -417,9 +429,9 @@ mod tests {
     #[test]
     fn test_nested() {
         let l: Vec<Box<Encodable>> = vec![Box::new("potato".to_string()), Box::new("carrot".to_string()), Box::new(1234) ];
-        let mut d: BTreeMap<String,Box<Encodable>> = BTreeMap::new();
-        d.insert("key1".to_string(), Box::new("carrot".to_string()));
-        d.insert("key2".to_string(), Box::new(l));
+        let mut d: BTreeMap<Vec<u8>,Box<Encodable>> = BTreeMap::new();
+        d.insert(b"key1".to_vec(), Box::new(b"carrot".to_vec()));
+        d.insert(b"key2".to_vec(), Box::new(l));
         let res = Encoder::new(Box::new(d)).encode();
         assert_eq!(b"d4:key16:carrot4:key2l6:potato6:carroti1234eee".to_vec(), res);
     }
