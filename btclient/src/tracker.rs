@@ -10,14 +10,16 @@
 
 extern crate rand;
 extern crate url;
+extern crate reqwest;
 
 use std::str;
 use std::collections::BTreeMap;
 
 use rand::Rng;
 use url::form_urlencoded;
+use reqwest::blocking;
 
-use crate::bencoding::Decoded;
+use crate::bencoding::{Decoded, Decoder};
 use crate::torrent::Torrent;
 
 
@@ -95,7 +97,6 @@ impl TrackerResponse {
 pub struct Tracker {
     torrent: Torrent,
     peer_id: Vec<u8>,
-    // TODO http client
 }
 
 impl Tracker {
@@ -103,10 +104,10 @@ impl Tracker {
         Tracker {
             torrent: torrent,
             peer_id: Tracker::calculate_peer_id(),
-            // TODO http client
         }
     }
     pub fn connect(&self, uploaded: usize, downloaded: usize, first: bool) -> TrackerResponse {
+        // its called connect, but it's actually stateless
         
         let encoded_params: String = form_urlencoded::Serializer::new(String::new())
             .append_pair("info_hash", str::from_utf8(&self.torrent.info_hash).unwrap())
@@ -124,19 +125,31 @@ impl Tracker {
         let mut url = str::from_utf8(&self.torrent.announce()).unwrap().to_string() + "?" + &encoded_params;
 
         if first {
+            url += "&";
             url += &encoded_event;
         }
 
-        // TODO make GET request
+        let mut resp = reqwest::blocking::get(&url).unwrap();
 
-        TrackerResponse::new(BTreeMap::new())
+        if resp.status() != 200 {
+            panic!("response status: {}", resp.status());
+        }
+
+        // get response data bytes
+        let mut bytes: Vec<u8> = Vec::new();
+        resp.copy_to(&mut bytes);
+        self.raise_for_error(&bytes);
+
+        let decoded_dict: BTreeMap<Vec<u8>, Decoded> = Decoder::new(bytes).decode().unwrap().dict.unwrap();
+        TrackerResponse::new(decoded_dict)
     }
-    pub fn close(&self) {
-        // TODO close the http client
-    }
-    pub fn raise_for_error(&self) {
-        // TODO search for 'failure' in message
-        panic!("error");
+
+    fn raise_for_error(&self, data: &[u8]) {
+        for i in 0usize..data.len()-7 {
+            if b"failure" == &data[i..i+7] {
+                panic!("error");
+            }
+        }
     }
  
     fn calculate_peer_id() -> Vec<u8> {
