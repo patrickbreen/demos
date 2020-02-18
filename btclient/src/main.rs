@@ -3,6 +3,7 @@ extern crate crypto;
 mod bencoding;
 mod torrent;
 mod client;
+mod protocol;
 mod tracker;
 
 
