@@ -32,8 +32,8 @@ impl TrackerResponse {
         TrackerResponse {response: response}
     }
     pub fn failure(&self) -> Option<Vec<u8>> {
-        if self.response.contains_key(&b"failure_response".to_vec()) {
-            return Some(self.response.get(&b"failure_response".to_vec()).unwrap().bytes.as_ref().unwrap().to_vec());
+        if self.response.contains_key(&b"failure reason".to_vec()) {
+            return Some(self.response.get(&b"failure reason".to_vec()).unwrap().bytes.as_ref().unwrap().to_vec());
         }
         None
     }
@@ -73,11 +73,11 @@ impl TrackerResponse {
     fn format_peers(raw_peers: Vec<u8>) -> Vec<(String, u16)> {
         let mut ret = Vec::new();
         let mut i = 0;
-        while i + 8 < raw_peers.len() {
+        while i + 6 <= raw_peers.len() {
             let ip_bytes = &raw_peers[i..i+4];
             let mut str_bytes: Vec<String> = Vec::new();
             for byte in ip_bytes {
-                str_bytes.push(str::from_utf8(&[*byte]).unwrap().to_string());
+                str_bytes.push(byte.to_string());
             }
             let ip = str_bytes.connect(":");
 
@@ -170,10 +170,75 @@ mod tests {
     // import parent scope
     use super::*;
 
-    fn test_response() {
-        let response = TrackerResponse::new(BTreeMap::new());
+    fn ok_response() -> TrackerResponse {
+        let mut dict = BTreeMap::new();
+        dict.insert(b"complete".to_vec(), Decoded{
+            type_name: "int".to_string(),
+            int: Some(5500),
+            bytes: None,
+            list: None,
+            dict: None});
+        dict.insert(b"incomplete".to_vec(), Decoded{
+            type_name: "int".to_string(),
+            int: Some(240),
+            bytes: None,
+            list: None,
+            dict: None});
+        dict.insert(b"interval".to_vec(), Decoded{
+            type_name: "int".to_string(),
+            int: Some(1800),
+            bytes: None,
+            list: None,
+            dict: None});
+        dict.insert(b"peers".to_vec(), Decoded{
+            type_name: "bytes".to_string(),
+            int: None,
+            bytes: Some(b"V\x04\x18s\xc8\xdb\xb0\x1fc\xb2\xc7\x98V=G\x95\xa4\x1dP\x1e\xbf\xb0\xc8\xd5%\xbb\x01=\\\x1e\xb2\xdaf\x1b\x1a\xe1Oq\xee+\xc8\xd5S\xe3\x89M\xcc\xc7U\x0fXe\xc8\xd5\xbc\xe8\xd5\xde\xc8\xd5\xb9\x15\xd9J\xfa\x00\x05'Y\x1f\x1e\xc9\xc0\x00\xab*\x1a\xe1\xbcI\xa0P\x84\x99P\xdb\xe3\xd5\xcd-P\xb1\xa5\x93\x1a\xe1\xc0\x83,\t\xe7\x86I\n\xdae\xc8\xd5\xcc\xbbd\x13\x9c\xbf.)F\x17\x1a\xe1k\xbc\xea\xed\xbe\xa0\xb0O\x9b\xf3Z$P\xea,Q\xee;\xc0\x83,\\\xe5\x07e\xb8\x80\r\xed2\xb7\x0e\xa2N\xc8\xd5\x1f\x19\x1f\xda\xc8\xd5\x05'T\r\xc8\xd5[\xc4\xc2%\xc8\xd5^\x17%F\xc8\xd5^\x17\xdd\xd5\xaf\xd5\x83\xf7\x13t\xdcV\xc3.\xbbA\xc8\xd5\x051N\xd9\xc8\xd5OxV\x80\x1a\xecO\xf3\x97\xf9\x1a\xe1\xa3\xac\x84\xe6(\xcc\xd9\xe0L2\xffE\xd9X[\xc2\x1a\xe1\x02\x1d\x160\xc8\xd5PG\x81t\xe3\xc1\xce\xe1R\xa1\xb3\x9f\xc5\x94a\xa2\xc8\xd5H\xb9\xe3}\xe7\xd3\xc2\xe2\x9bK\xde\xa7_\xb6/\xe6\xd1*Pc1k\x1a\xeaG\xcf.(\xc8\xd5\xc3\x9a\xf0\x03\xb4\x06^\xf5.\x9dL\x18".to_vec()),
+            list: None,
+            dict: None});
+        TrackerResponse::new(dict)
     }
 
+    #[test]
+    fn test_failed_response() {
+        let mut dict = BTreeMap::new();
+        dict.insert(b"failure reason".to_vec(), Decoded{
+            type_name: "bytes".to_string(),
+            int: None,
+            bytes: Some(b"You failed!".to_vec()),
+            list: None,
+            dict: None});
+        let response = TrackerResponse::new(dict);
+        assert_eq!(b"You failed!".to_vec(), response.failure().unwrap());
+    }
+
+    #[test]
+    fn test_successful_response_no_failure() {
+        let response = ok_response();
+        assert!(response.failure().is_none());
+    }
+    #[test]
+    fn test_successful_response_complete() {
+        let response = ok_response();
+        assert_eq!(response.complete(), 5500);
+    }
+    #[test]
+    fn test_successful_response_incomplete() {
+        let response = ok_response();
+        assert_eq!(response.incomplete(), 240);
+    }
+    #[test]
+    fn test_successful_response_interval() {
+        let response = ok_response();
+        assert_eq!(response.interval(), 1800);
+    }
+    #[test]
+    fn test_successful_response_peer_string() {
+        let response = ok_response();
+        assert_eq!(response.peers().len(), 50);
+    }
+
+    #[test]
     fn test_tracker() {
         // smoke test
         let torrent = Torrent::new(b"data/ubuntu-18.04.3-desktop-amd64.iso.torrent".to_vec());
