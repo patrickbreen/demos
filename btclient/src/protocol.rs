@@ -106,6 +106,29 @@ impl PeerMessage for Handshake {
     }
 }
 
+
+struct KeepAlive {
+}
+
+impl PeerMessage for KeepAlive {
+
+    fn encode(&mut self) -> Vec<u8> {
+        panic!("Not implemented");
+    }
+    fn decode(data: Vec<u8>) -> Self {
+        panic!("Not implemented");
+    }
+    fn to_string() -> String {
+        "KeepAlive".to_string()
+    }
+}
+
+struct BitField {
+    //TODO
+}
+
+
+
 #[cfg(test)]
 mod tests {
     // import parent scope
