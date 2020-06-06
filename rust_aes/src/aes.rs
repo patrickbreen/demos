@@ -1,3 +1,5 @@
+use std::str;
+
 use byteorder::{ByteOrder, BigEndian};
 
 struct AES {
@@ -222,6 +224,30 @@ impl AES {
 }
 
 
+struct AESModeOfOperationECB {
+    aes: AES,
+}
+
+impl AESModeOfOperationECB {
+
+    fn new(key: String) -> AESModeOfOperationECB {
+        AESModeOfOperationECB {
+            aes: AES::new(key.as_bytes().to_vec()),
+        }
+    }
+
+    fn encrypt(&mut self, plaintext: String) -> Vec<u8> {
+        self.aes.encrypt(plaintext.as_bytes().to_vec())
+    }
+
+    fn decrypt(&mut self, ciphertext_bytes: Vec<u8>) -> String {
+        str::from_utf8(&self.aes.decrypt(ciphertext_bytes)).unwrap().to_string()
+    }
+}
+        
+
+
+
 
 
 #[cfg(test)]
@@ -235,8 +261,6 @@ mod tests {
     fn test_raw_aes() {
         
         let key: Vec<u8> = "lets crypt&*()12".as_bytes().to_vec();
-        
-        // let kaes = KAES.new(key, KAES.MODE_CBC, iv);
         let mut aes = AES::new(key);
         
         
@@ -251,6 +275,30 @@ mod tests {
         
         // decrypt the text
         let decrypted = aes.decrypt(ct.clone());
+
+        assert_eq!(pt, decrypted);
+    }
+
+
+
+    #[test]
+    fn test_aes_mode_of_operation_ecb() {
+        let key = "lets crypt&*()12".to_string();
+        
+        let mut ecb = AESModeOfOperationECB::new(key);
+        
+        
+        // encrypt some text
+        let pt = "lets crypt&*()12".to_string();
+        let ct = ecb.encrypt(pt.clone());
+
+        // check the cipher text vs expected text
+        let expected_cipher_text = "[f5, ca, 10, 27, 1e, 8f, 10, 13, 72, 6c, 93, b5, a0, a8, 33, 69]";
+        let hex_ct = format!("{:x?}", ct);
+        assert_eq!(expected_cipher_text, hex_ct);
+        
+        // decrypt the text
+        let decrypted = ecb.decrypt(ct.clone());
 
         assert_eq!(pt, decrypted);
     }

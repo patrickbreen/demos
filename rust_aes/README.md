@@ -23,8 +23,8 @@ TODO:
 [-] Make Output Feedback
 [-] Test Output Feedback
 
-[-] Make Electronic Code Book
-[-] Test Electronic Code Book
+[x] Make Electronic Code Book
+[x] Test Electronic Code Book
 
 [-] Block feeder utility
 
