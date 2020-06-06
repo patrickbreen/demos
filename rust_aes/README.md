@@ -9,7 +9,7 @@ Source - https://github.com/ricmoo/pyaes/tree/23a1b4c0488bd38e03a48120dfda98913f
 TODO:
 
 [x] Make AES class
-[-] Test AES class
+[x] Test AES class
 
 [-] Make Cipher Block Chaining
 [-] Test Cipher Block Chaining
