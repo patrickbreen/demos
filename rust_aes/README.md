@@ -11,8 +11,8 @@ TODO:
 [x] Make AES class
 [x] Test AES class
 
-[-] Make Cipher Block Chaining
-[-] Test Cipher Block Chaining
+[x] Make Cipher Block Chaining
+[x] Test Cipher Block Chaining
 
 [-] Make Counter Mode of operation
 [-] Test Counter Mode of operation

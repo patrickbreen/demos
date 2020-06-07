@@ -136,7 +136,7 @@ impl AES {
         AES {ke: ke, kd: kd}
     }
     
-    fn encrypt(&mut self, pt: Vec<u8>) -> Vec<u8> {
+    fn encrypt(&mut self, pt: &Vec<u8>) -> Vec<u8> {
         // Encrypt a block of plain text using the AES block cipher.
 
         if pt.len() != 16 {
@@ -179,7 +179,7 @@ impl AES {
         result
     }
     
-    fn decrypt(&mut self, ct: Vec<u8>) -> Vec<u8> {
+    fn decrypt(&mut self, ct: &Vec<u8>) -> Vec<u8> {
         // Decrypt a block of cipher text using the AES block cipher.
 
         if ct.len() != 16 {
@@ -223,6 +223,22 @@ impl AES {
     }
 }
 
+struct Counter {
+    counter: Vec<u8>,
+}
+
+impl Counter {
+    fn new(initial_value: u8) -> Counter {
+        // TODO
+        Counter { counter: vec![] }
+    }
+
+    fn increment(&mut self) {
+        // TODO
+    }
+
+}
+
 
 struct AESModeOfOperationECB {
     aes: AES,
@@ -236,15 +252,93 @@ impl AESModeOfOperationECB {
         }
     }
 
-    fn encrypt(&mut self, plaintext: String) -> Vec<u8> {
-        self.aes.encrypt(plaintext.as_bytes().to_vec())
+    fn encrypt(&mut self, plaintext: &str) -> Vec<u8> {
+        self.aes.encrypt(&plaintext.as_bytes().to_vec())
     }
 
-    fn decrypt(&mut self, ciphertext_bytes: Vec<u8>) -> String {
-        str::from_utf8(&self.aes.decrypt(ciphertext_bytes)).unwrap().to_string()
+    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
+        self.aes.decrypt(ciphertext_bytes)
     }
 }
-        
+
+
+struct AESModeOfOperationCBC {
+    aes: AES,
+    last_cipher_block: Vec<u8>,
+}
+
+impl AESModeOfOperationCBC {
+    fn new(key: String, initial_vector: String) -> AESModeOfOperationCBC {
+
+        if initial_vector.len() != 16 {
+            panic!("block length for initial_vector: {} does not equal 16", initial_vector.len());
+        }
+
+
+        AESModeOfOperationCBC {
+            aes: AES::new(key.as_bytes().to_vec()),
+            last_cipher_block: initial_vector.as_bytes().to_vec(),
+        }
+    }
+
+    fn encrypt(&mut self, plaintext: &str) -> Vec<u8> {
+
+
+        let plaintext_bytes = plaintext.as_bytes().to_vec();
+        let mut precipher_block = Vec::new();
+
+        for i in 0..16 {
+            precipher_block.push(plaintext_bytes[i] ^ self.last_cipher_block[i]);
+        }
+
+        self.last_cipher_block = self.aes.encrypt(&precipher_block);
+        self.last_cipher_block.clone()
+    }
+
+    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
+        let mut plaintext_block = Vec::new();
+        let decrypted_block = self.aes.decrypt(ciphertext_bytes);
+
+        for i in 0..16 {
+            plaintext_block.push(self.last_cipher_block[i] ^ decrypted_block[i]);
+        }
+        self.last_cipher_block = ciphertext_bytes.to_vec();
+
+        // str::from_utf8(&plaintext_block).unwrap().to_string()
+        plaintext_block
+    }
+}
+
+
+struct AESModeOfOperationCFB {
+    // TODO
+    aes: AES,
+}
+
+impl AESModeOfOperationCFB {
+    // TODO
+}
+
+
+
+struct AESModeOfOperationOFB {
+    // TODO
+    aes: AES,
+}
+
+impl AESModeOfOperationOFB {
+    // TODO
+}
+
+
+struct AESModeOfOperationCTR {
+    // TODO
+    aes: AES,
+}
+
+impl AESModeOfOperationCTR {
+    // TODO
+}
 
 
 
@@ -256,7 +350,6 @@ mod tests {
     use super::*;
 
 
-
     #[test]
     fn test_raw_aes() {
         
@@ -266,7 +359,7 @@ mod tests {
         
         // encrypt some text
         let pt = "lets crypt&*()12".as_bytes().to_vec();
-        let ct = aes.encrypt(pt.clone());
+        let ct = aes.encrypt(&pt);
 
         // check the cipher text vs expected text
         let expected_cipher_text = "[f5, ca, 10, 27, 1e, 8f, 10, 13, 72, 6c, 93, b5, a0, a8, 33, 69]";
@@ -274,7 +367,7 @@ mod tests {
         assert_eq!(expected_cipher_text, hex_ct);
         
         // decrypt the text
-        let decrypted = aes.decrypt(ct.clone());
+        let decrypted = aes.decrypt(&ct);
 
         assert_eq!(pt, decrypted);
     }
@@ -290,7 +383,7 @@ mod tests {
         
         // encrypt some text
         let pt = "lets crypt&*()12".to_string();
-        let ct = ecb.encrypt(pt.clone());
+        let ct = ecb.encrypt(&pt);
 
         // check the cipher text vs expected text
         let expected_cipher_text = "[f5, ca, 10, 27, 1e, 8f, 10, 13, 72, 6c, 93, b5, a0, a8, 33, 69]";
@@ -298,9 +391,39 @@ mod tests {
         assert_eq!(expected_cipher_text, hex_ct);
         
         // decrypt the text
-        let decrypted = ecb.decrypt(ct.clone());
+        let decrypted = ecb.decrypt(&ct);
 
-        assert_eq!(pt, decrypted);
+        assert_eq!(pt.as_bytes().to_vec(), decrypted);
+    }
+
+
+
+    #[test]
+    fn test_aes_mode_of_operation_cbc() {
+        let key = "lets crypt&*()12".to_string();
+        let initial_vector = "AAAAAAAAAAAAAAAA".to_string();
+        
+        let mut cbc = AESModeOfOperationCBC::new(key, initial_vector);
+        
+        
+        // encrypt some text
+        let pt = "lets crypt&*()12".to_string();
+        let ct = cbc.encrypt(&pt);
+
+        // check the cipher text vs expected text
+        let expected_cipher_text = "[f6, e1, 21, 83, f3, 69, 4f, d4, bc, 41, ea, 80, d2, 20, 8c, 57]";
+        let hex_ct = format!("{:x?}", ct);
+        assert_eq!(expected_cipher_text, hex_ct);
+        
+        // decrypt the text
+
+        // theoretically a wrong initialization vector will "only cause the first
+        // block to be corrupt; all other blocks will be intact" but I'm not testing
+        // multiple blocks at this time.
+        cbc.last_cipher_block = "AAAAAAAAAAAAAAAA".as_bytes().to_vec();
+        let decrypted = cbc.decrypt(&ct);
+
+        assert_eq!(pt.as_bytes().to_vec(), decrypted);
     }
 }
 
