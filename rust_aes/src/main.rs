@@ -5,5 +5,5 @@ extern crate rand;
 mod aes;
 
 fn main() {
-    println!("Hello, world!");
+    println!("The author holds no liability for any use of this code.");
 }

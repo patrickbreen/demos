@@ -241,8 +241,8 @@ impl AESModeOfOperationECB {
         self.aes.encrypt(&plaintext)
     }
 
-    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
-        self.aes.decrypt(ciphertext_bytes)
+    fn decrypt(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+        self.aes.decrypt(ciphertext)
     }
 }
 
@@ -278,16 +278,52 @@ impl AESModeOfOperationCBC {
         self.last_cipher_block.clone()
     }
 
-    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
+    fn decrypt(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
         let mut plaintext_block = Vec::new();
-        let decrypted_block = self.aes.decrypt(ciphertext_bytes);
+        let decrypted_block = self.aes.decrypt(ciphertext);
 
         for i in 0..16 {
             plaintext_block.push(self.last_cipher_block[i] ^ decrypted_block[i]);
         }
-        self.last_cipher_block = ciphertext_bytes.to_vec();
+        self.last_cipher_block = ciphertext.to_vec();
 
         plaintext_block
+    }
+
+
+    fn util_encrypt_stream(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        let mut padded_input = vec![0u8;16];
+
+        let remainder = plaintext.len() % 16;
+
+        let mut padding = vec![0u8; remainder];
+
+        padded_input.append(&mut plaintext.clone());
+        padded_input.append(&mut padding);
+
+        let mut output: Vec<u8> = Vec::new();
+
+        for i in 0..padded_input.len()/16 {
+            output.append(&mut self.encrypt(&padded_input[i*16..i*16+16].to_vec()))
+        }
+
+        output
+    }
+
+
+    fn util_decrypt_stream(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
+
+        if ciphertext.len() % 16 != 0 {
+            panic!("cipher text length: {} needs to be a multiple of 16", ciphertext.len());
+        }
+
+        let mut output: Vec<u8> = Vec::new();
+
+        for i in 0..ciphertext.len()/16 {
+            output.append(&mut self.decrypt(&ciphertext[i*16..i*16+16].to_vec()))
+        }
+
+        output
     }
 }
 
@@ -323,7 +359,6 @@ impl Counter {
                 // carry the 1
                 self.counter[i] = 0;
             }
-            
 
             // carry the one
             self.counter[i] = 0
@@ -347,16 +382,16 @@ impl AESModeOfOperationCTR {
         }
     }
 
-    fn encrypt(&mut self, plaintext_bytes: &Vec<u8>) -> Vec<u8> {
-        while self.remaining_counter.len() < plaintext_bytes.len() {
+    fn encrypt(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        while self.remaining_counter.len() < plaintext.len() {
             self.remaining_counter.append(&mut self.aes.encrypt(&self.counter.counter));
             self.counter.increment();
         }
 
         let mut encrypted = Vec::new();
 
-        for i in 0..plaintext_bytes.len() {
-            encrypted.push(plaintext_bytes[i] ^ self.remaining_counter[i]);
+        for i in 0..plaintext.len() {
+            encrypted.push(plaintext[i] ^ self.remaining_counter[i]);
         }
 
         self.remaining_counter.split_off(encrypted.len());
@@ -364,9 +399,9 @@ impl AESModeOfOperationCTR {
         encrypted
     }
 
-    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
+    fn decrypt(&mut self, ciphertext: &Vec<u8>) -> Vec<u8> {
         // AES-CTR is symetric
-        self.encrypt(ciphertext_bytes)
+        self.encrypt(ciphertext)
     }
 }
 
@@ -482,6 +517,33 @@ mod tests {
 
         assert_ne!(pt, decrypted);
         assert_eq!(pt, decrypted2);
+    }
+
+
+    #[test]
+    fn test_cbc_stream_util() {
+        let key = "lets crypt&*()12".as_bytes().to_vec();
+        let initial_vector = "AAAAAAAAAAAAAAAA".as_bytes().to_vec();
+        
+        let mut cbc = AESModeOfOperationCBC::new(key, initial_vector);
+        
+        
+        // encrypt less than a block and greater than a block
+        let pt = "lets crypt".as_bytes().to_vec();
+        let pt2 = "lets crypt&*()12 3456789".as_bytes().to_vec();
+        let ct = cbc.util_encrypt_stream(&pt);
+        let ct2 = cbc.util_encrypt_stream(&pt2);
+
+        
+        // decrypt the text
+
+        // Note how we take off the padding at the front and the back after the decryption here.
+        let decrypted = cbc.util_decrypt_stream(&ct)[16..16+pt.len()].to_vec();
+        let decrypted2 = cbc.util_decrypt_stream(&ct2)[16..16+pt2.len()].to_vec();
+
+
+        assert_eq!(pt, decrypted);
+        assert_eq!(pt2, decrypted2);
     }
 
 
