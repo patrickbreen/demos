@@ -14,20 +14,14 @@ TODO:
 [x] Make Cipher Block Chaining
 [x] Test Cipher Block Chaining
 
-[-] Make Counter Mode of operation
-[-] Test Counter Mode of operation
-
-[-] Make Cipher Feedback
-[-] Test Cipher Feedback
-
-[-] Make Output Feedback
-[-] Test Output Feedback
+[x] Make Counter Mode of operation
+[x] Test Counter Mode of operation
 
 [x] Make Electronic Code Book
 [x] Test Electronic Code Book
 
-[-] Block feeder utility
+[-] Block feeder utility (with padding) for Cipher Block Chaining
 
-[-] Key generation (from password) Examples
+[-] Key generation (from password hash) utility
 
-[-] Document
+[-] Document, examples

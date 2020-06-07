@@ -1,4 +1,5 @@
 use std::str;
+use rand::Rng;
 
 use byteorder::{ByteOrder, BigEndian};
 
@@ -223,22 +224,6 @@ impl AES {
     }
 }
 
-struct Counter {
-    counter: Vec<u8>,
-}
-
-impl Counter {
-    fn new(initial_value: u8) -> Counter {
-        // TODO
-        Counter { counter: vec![] }
-    }
-
-    fn increment(&mut self) {
-        // TODO
-    }
-
-}
-
 
 struct AESModeOfOperationECB {
     aes: AES,
@@ -246,14 +231,14 @@ struct AESModeOfOperationECB {
 
 impl AESModeOfOperationECB {
 
-    fn new(key: String) -> AESModeOfOperationECB {
+    fn new(key: Vec<u8>) -> AESModeOfOperationECB {
         AESModeOfOperationECB {
-            aes: AES::new(key.as_bytes().to_vec()),
+            aes: AES::new(key),
         }
     }
 
-    fn encrypt(&mut self, plaintext: &str) -> Vec<u8> {
-        self.aes.encrypt(&plaintext.as_bytes().to_vec())
+    fn encrypt(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        self.aes.encrypt(&plaintext)
     }
 
     fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
@@ -268,7 +253,7 @@ struct AESModeOfOperationCBC {
 }
 
 impl AESModeOfOperationCBC {
-    fn new(key: String, initial_vector: String) -> AESModeOfOperationCBC {
+    fn new(key: Vec<u8>, initial_vector: Vec<u8>) -> AESModeOfOperationCBC {
 
         if initial_vector.len() != 16 {
             panic!("block length for initial_vector: {} does not equal 16", initial_vector.len());
@@ -276,15 +261,13 @@ impl AESModeOfOperationCBC {
 
 
         AESModeOfOperationCBC {
-            aes: AES::new(key.as_bytes().to_vec()),
-            last_cipher_block: initial_vector.as_bytes().to_vec(),
+            aes: AES::new(key),
+            last_cipher_block: initial_vector,
         }
     }
 
-    fn encrypt(&mut self, plaintext: &str) -> Vec<u8> {
-
-
-        let plaintext_bytes = plaintext.as_bytes().to_vec();
+    fn encrypt(&mut self, plaintext: &Vec<u8>) -> Vec<u8> {
+        let plaintext_bytes = plaintext;
         let mut precipher_block = Vec::new();
 
         for i in 0..16 {
@@ -304,44 +287,88 @@ impl AESModeOfOperationCBC {
         }
         self.last_cipher_block = ciphertext_bytes.to_vec();
 
-        // str::from_utf8(&plaintext_block).unwrap().to_string()
         plaintext_block
     }
 }
 
-
-struct AESModeOfOperationCFB {
-    // TODO
-    aes: AES,
+struct Counter {
+    counter: Vec<u8>,
 }
 
-impl AESModeOfOperationCFB {
-    // TODO
-}
+impl Counter {
+    fn new(initial_vector: Vec<u8>) -> Counter {
+        // Convert the value into an array of bytes long
 
+        // the initial value of the counter is like the key - critical to remember,
+        // and critical to keep secret so that others can't break the encryption
 
+        Counter { counter: initial_vector }
+    }
 
-struct AESModeOfOperationOFB {
-    // TODO
-    aes: AES,
-}
+    fn increment(&mut self) {
+        // Increment the counter (overflow rolls back to 0).
 
-impl AESModeOfOperationOFB {
-    // TODO
+        let mut n_underflows = 0;
+        for i in (0..self.counter.len()).rev() {
+            
+
+            if self.counter[i] < 255 {
+                self.counter[i] += 1;
+                break;
+            } else if i == 0 && self.counter[i] == 255 {
+                // overflow
+                self.counter = vec![0; 16];
+
+            } else {
+                // carry the 1
+                self.counter[i] = 0;
+            }
+            
+
+            // carry the one
+            self.counter[i] = 0
+        }
+    }
 }
 
 
 struct AESModeOfOperationCTR {
-    // TODO
     aes: AES,
+    counter: Counter,
+    remaining_counter: Vec<u8>,
 }
 
 impl AESModeOfOperationCTR {
-    // TODO
+    fn new(key: Vec<u8>, initial_value: Vec<u8>) -> AESModeOfOperationCTR {
+        AESModeOfOperationCTR {
+            aes: AES::new(key),
+            counter: Counter::new(initial_value),
+            remaining_counter: Vec::new(),
+        }
+    }
+
+    fn encrypt(&mut self, plaintext_bytes: &Vec<u8>) -> Vec<u8> {
+        while self.remaining_counter.len() < plaintext_bytes.len() {
+            self.remaining_counter.append(&mut self.aes.encrypt(&self.counter.counter));
+            self.counter.increment();
+        }
+
+        let mut encrypted = Vec::new();
+
+        for i in 0..plaintext_bytes.len() {
+            encrypted.push(plaintext_bytes[i] ^ self.remaining_counter[i]);
+        }
+
+        self.remaining_counter.split_off(encrypted.len());
+
+        encrypted
+    }
+
+    fn decrypt(&mut self, ciphertext_bytes: &Vec<u8>) -> Vec<u8> {
+        // AES-CTR is symetric
+        self.encrypt(ciphertext_bytes)
+    }
 }
-
-
-
 
 
 #[cfg(test)]
@@ -350,8 +377,9 @@ mod tests {
     use super::*;
 
 
+    // Test 128 bit AES
     #[test]
-    fn test_raw_aes() {
+    fn test_raw_aes_128() {
         
         let key: Vec<u8> = "lets crypt&*()12".as_bytes().to_vec();
         let mut aes = AES::new(key);
@@ -372,17 +400,39 @@ mod tests {
         assert_eq!(pt, decrypted);
     }
 
+    // Test 256 bit AES
+    #[test]
+    fn test_raw_aes_256() {
+        
+        let key: Vec<u8> = "lets crypt&*()12lets crypt&*()12".as_bytes().to_vec();
+        let mut aes = AES::new(key);
+        
+        
+        // encrypt some text
+        let pt = "lets crypt&*()12".as_bytes().to_vec();
+        let ct = aes.encrypt(&pt);
+
+        // check the cipher text vs expected text
+        let expected_cipher_text = "[f0, 6, 32, d2, ad, 15, 69, 5b, 53, ac, 92, d9, 9c, e4, a4, 25]";
+        let hex_ct = format!("{:x?}", ct);
+        assert_eq!(expected_cipher_text, hex_ct);
+        
+        // decrypt the text
+        let decrypted = aes.decrypt(&ct);
+
+        assert_eq!(pt, decrypted);
+    }
 
 
     #[test]
     fn test_aes_mode_of_operation_ecb() {
-        let key = "lets crypt&*()12".to_string();
+        let key = "lets crypt&*()12".as_bytes().to_vec();
         
         let mut ecb = AESModeOfOperationECB::new(key);
         
         
         // encrypt some text
-        let pt = "lets crypt&*()12".to_string();
+        let pt = "lets crypt&*()12".as_bytes().to_vec();
         let ct = ecb.encrypt(&pt);
 
         // check the cipher text vs expected text
@@ -393,21 +443,21 @@ mod tests {
         // decrypt the text
         let decrypted = ecb.decrypt(&ct);
 
-        assert_eq!(pt.as_bytes().to_vec(), decrypted);
+        assert_eq!(pt, decrypted);
     }
 
 
 
     #[test]
     fn test_aes_mode_of_operation_cbc() {
-        let key = "lets crypt&*()12".to_string();
-        let initial_vector = "AAAAAAAAAAAAAAAA".to_string();
+        let key = "lets crypt&*()12".as_bytes().to_vec();
+        let initial_vector = "AAAAAAAAAAAAAAAA".as_bytes().to_vec();
         
         let mut cbc = AESModeOfOperationCBC::new(key, initial_vector);
         
         
         // encrypt some text (we need 2 blocks, so we'll just repeat the same thing twice)
-        let pt = "lets crypt&*()12".to_string();
+        let pt = "lets crypt&*()12".as_bytes().to_vec();
         let ct = cbc.encrypt(&pt);
         let ct2 = cbc.encrypt(&pt);
 
@@ -430,8 +480,45 @@ mod tests {
         let decrypted2 = cbc.decrypt(&ct2);
 
 
-        assert_ne!(pt.as_bytes().to_vec(), decrypted);
-        assert_eq!(pt.as_bytes().to_vec(), decrypted2);
+        assert_ne!(pt, decrypted);
+        assert_eq!(pt, decrypted2);
     }
+
+
+    #[test]
+    fn test_aes_mode_of_operation_ctr() {
+        let key = "lets crypt&*()12".as_bytes().to_vec();
+        let initial_vector: Vec<u8> = (0..16).map(|_| { rand::random::<u8>() }).collect();
+        
+        let mut ctr = AESModeOfOperationCTR::new(key.clone(), initial_vector.clone());
+
+        // need another ctr with identical state for decoding
+        let mut ctr2 = AESModeOfOperationCTR::new(key.clone(), initial_vector.clone());
+        
+        
+        // encrypt some text (we need 2 blocks, so we'll just repeat the same thing twice)
+        // Its not critical that the plain text be a certain length. This is a stream cipher.
+        let pt = "lets crypt&*()12".as_bytes().to_vec();
+        let pt2 = "crypt this".as_bytes().to_vec();
+        let ct = ctr.encrypt(&pt);
+        let ct2 = ctr.encrypt(&pt2);
+
+        // check the cipher text vs expected text
+        
+        // decrypt the text
+
+        // I'm using 2 blobs (not blocks) that are different plain text content and length.
+        // Both should have the correctly decoded text.
+
+        let decrypted = ctr2.decrypt(&ct);
+        let decrypted2 = ctr2.decrypt(&ct2);
+
+
+        assert_eq!(pt, decrypted);
+        assert_eq!(pt2, decrypted2);
+    }
+
+
+    
 }
 
