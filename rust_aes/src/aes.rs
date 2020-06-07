@@ -406,9 +406,10 @@ mod tests {
         let mut cbc = AESModeOfOperationCBC::new(key, initial_vector);
         
         
-        // encrypt some text
+        // encrypt some text (we need 2 blocks, so we'll just repeat the same thing twice)
         let pt = "lets crypt&*()12".to_string();
         let ct = cbc.encrypt(&pt);
+        let ct2 = cbc.encrypt(&pt);
 
         // check the cipher text vs expected text
         let expected_cipher_text = "[f6, e1, 21, 83, f3, 69, 4f, d4, bc, 41, ea, 80, d2, 20, 8c, 57]";
@@ -417,13 +418,20 @@ mod tests {
         
         // decrypt the text
 
-        // theoretically a wrong initialization vector will "only cause the first
-        // block to be corrupt; all other blocks will be intact" but I'm not testing
-        // multiple blocks at this time.
-        cbc.last_cipher_block = "AAAAAAAAAAAAAAAA".as_bytes().to_vec();
-        let decrypted = cbc.decrypt(&ct);
+        // A wrong initialization vector will "only cause the first
+        // block to be corrupt; all other blocks will be intact" 
+        // This is because the initial vector only affects the first block.
 
-        assert_eq!(pt.as_bytes().to_vec(), decrypted);
+        // I'm using 2 blocks that are the same plain text.
+        // regardless, the first block should (probably) have the wrong initial vector, and 
+        // thus not decode properly, but the second block should decode correctly.
+
+        let decrypted = cbc.decrypt(&ct);
+        let decrypted2 = cbc.decrypt(&ct2);
+
+
+        assert_ne!(pt.as_bytes().to_vec(), decrypted);
+        assert_eq!(pt.as_bytes().to_vec(), decrypted2);
     }
 }
 
