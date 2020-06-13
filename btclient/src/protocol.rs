@@ -80,6 +80,19 @@ impl Handshake {
 }
 
 impl PeerMessage for Handshake {
+
+    // The handshake message is the first message sent and then received from a
+    // remote peer.
+    // The messages is always 68 bytes long (for this version of BitTorrent
+    // protocol).
+    // Message format:
+    //     <pstrlen><pstr><reserved><info_hash><peer_id>
+    // In version 1.0 of the BitTorrent protocol:
+    //     pstrlen = 19
+    //     pstr = "BitTorrent protocol".
+    // Thus length is:
+    //     49 + len(pstr) = 68 bytes long.
+
     fn encode(&mut self) -> Vec<u8> {
         let mut ret : Vec<u8> = Vec::new();
         ret.push(19);
@@ -111,6 +124,7 @@ struct KeepAlive {
 }
 
 impl PeerMessage for KeepAlive {
+    // The Keep-Alive message has no payload and length is set to zero.
 
     fn encode(&mut self) -> Vec<u8> {
         panic!("Not implemented");
@@ -125,6 +139,47 @@ impl PeerMessage for KeepAlive {
 
 struct BitField {
     //TODO
+    bitfield: Vec<u8>,
+}
+
+impl BitField {
+
+    fn new(data: Vec<u8>) -> BitField {
+        BitField { bitfield: data}
+    }
+}
+
+impl PeerMessage for BitField {
+
+    // The BitField is a message with variable length where the payload is a
+    // bit array representing all the bits a peer have (1) or does not have (0).
+    // Message format:
+    //     <len=0001+X><id=5><bitfield>
+
+    // for now I don't see a reason to treat this as bits, so I'll treat it as bytes
+
+    fn encode(&mut self) -> Vec<u8> {
+        let bits_length = self.bitfield.len() * 8;
+        let s = structure!(">Ib");
+
+        let mut buf = s.pack(1 + bits_length as u32, BitField::BITFIELD as i8).unwrap();
+
+        let mut ret  = Vec::new();
+        ret.append(&mut buf);
+        ret.append(&mut self.bitfield);
+        ret
+    }
+    fn decode(data: Vec<u8>) -> Self {
+
+        // get message length
+        let s_len = structure!(">Ib");
+        let  (message_length, message_type) = s_len.unpack(data[0..5].to_vec()).unwrap();
+
+        BitField::new(data[5..].to_vec())
+    }
+    fn to_string() -> String {
+        "BitField".to_string()
+    }
 }
 
 

@@ -1,3 +1,5 @@
+#[macro_use]
+extern crate structure;
 extern crate crypto;
 
 mod bencoding;
