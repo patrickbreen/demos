@@ -20,6 +20,8 @@
 // Piece
 // Cancel
 
+use std::net::TcpStream;
+
 
 // TODO!!!
 // implement PeerConnection, PeerStreamIterator, and Test
@@ -29,6 +31,63 @@ const REQUEST_SIZE: usize = 16384;
 
 // TODO
 struct PeerConnection {
+    // my_state,
+    // peer_state,
+    // queue,
+    // info_hash,
+    // peer_id,
+    // remote_id,
+    // writer,
+    // reader,
+    // piece_manager,
+    // on_block_cb,
+    // future,
+}
+
+impl PeerConnection {
+    // A peer connection used to download and upload pieces.
+
+    // The peer connection will consume one available peer from the given queue.
+    // Based on the peer details the PeerConnection will try to open a connection
+    // and perform a BitTorrent handshake.
+
+    // After a successful handshake, the PeerConnection will be in a *choked*
+    // state, not allowed to request any data from the remote peer. After sending
+    // an interested message the PeerConnection will be waiting to get *unchoked*.
+    // Once the remote peer unchoked us, we can start requesting pieces.
+
+    // The PeerConnection will continue to request pieces for as long as there are
+    // pieces left to request, or until the remote peer disconnects.
+
+    // If the connection with a remote peer drops, the PeerConnection will consume
+    // the next available peer from off the queue and try to connect to that one
+    // instead.
+
+    fn new() -> PeerConnection {
+        PeerConnection {}
+    }
+
+    fn parse(&self) {
+    }
+
+    fn start(&self) {
+    }
+
+    fn cancel(&self) {
+    }
+
+    fn stop(&self) {
+    }
+
+    fn request_piece(&self) {
+    }
+
+    fn handshake(&self) {
+    }
+
+    fn send_interested(&self) {
+    }
+
 }
 
 // TODO
@@ -36,9 +95,23 @@ struct PeerStreamIterator {
 }
 
 impl PeerStreamIterator {
+
+    // The `PeerStreamIterator` is an iterator that continuously reads from
+    // the given stream reader and tries to parse valid BitTorrent messages from
+    // off that stream of bytes.
+
+    // If the connection is dropped, something fails the iterator will abort by
+    // raising the `StopAsyncIteration` error ending the calling iteration.
+
+    // For now, I assume I'll be using a rust TcpStream
+    // https://doc.rust-lang.org/beta/std/net/struct.TcpStream.html
+
+    // Also, I assume I'll be implementing the Iterator trait
+    // https://doc.rust-lang.org/std/iter/trait.Iterator.html
+
     const CHUNK_SIZE: usize = 10*1024;
 
-    fn new(buffer: Vec<u8>) -> PeerStreamIterator {
+    fn new(reader: TcpStream, buffer: Vec<u8>) -> PeerStreamIterator {
         PeerStreamIterator {}
     }
 
