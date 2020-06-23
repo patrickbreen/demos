@@ -81,10 +81,8 @@ impl TrackerResponse {
             }
             let ip = str_bytes.connect(":");
 
-
             let port_bytes = &raw_peers[i+4..i+6];
             let port : u16 = port_bytes[0] as u16 * port_bytes[1] as u16;
-
 
             ret.push((ip, port));
             i += 6;
@@ -107,27 +105,39 @@ impl Tracker {
         }
     }
     pub fn connect(&self, uploaded: usize, downloaded: usize, first: bool) -> TrackerResponse {
-        // its called connect, but it's actually stateless
-        
-        let encoded_params: String = form_urlencoded::Serializer::new(String::new())
-            .append_pair("info_hash", str::from_utf8(&self.torrent.info_hash).unwrap())
-            .append_pair("peer_id", str::from_utf8(&self.peer_id).unwrap())
-            .append_pair("port", "6889")
-            .append_pair("uploaded", &uploaded.to_string())
-            .append_pair("downloaded", &downloaded.to_string())
-            .append_pair("left", &(self.torrent.total_size() - downloaded).to_string())
-            .append_pair("compact", "1")
-            .finish();
-        let encoded_event: String = form_urlencoded::Serializer::new(String::new())
-            .append_pair("event", "started")
-            .finish();
 
-        let mut url = str::from_utf8(&self.torrent.announce()).unwrap().to_string() + "?" + &encoded_params;
+        let mut encoded_info_hash = String::new();
 
-        if first {
-            url += "&";
-            url += &encoded_event;
+        // manually encode the info_hash
+        for i in 0..20 {
+            encoded_info_hash += "%";
+            encoded_info_hash += &self.torrent.info_hash[i*2..i*2+2];
         }
+
+        let mut url = str::from_utf8(&self.torrent.announce()).unwrap().to_string() + "?";
+        url += "info_hash=";
+        url += &encoded_info_hash;
+
+        url += "&peer_id=";
+        url += str::from_utf8(&self.peer_id).unwrap();
+
+        url += "&port=";
+        url += "6889";
+
+        url += "&uploaded=";
+        url += &uploaded.to_string();
+
+        url += "&downloaded=";
+        url += &downloaded.to_string();
+
+        url += "&left=";
+        url += &(self.torrent.total_size() - downloaded).to_string();
+
+        url += "&compact=";
+        url += "1";
+
+        url += "&event=";
+        url += "started";
 
         let mut resp = reqwest::blocking::get(&url).unwrap();
 
@@ -241,7 +251,7 @@ mod tests {
     #[test]
     fn test_tracker() {
         // smoke test
-        let torrent = Torrent::new(b"data/ubuntu-18.04.3-desktop-amd64.iso.torrent".to_vec());
+        let torrent = Torrent::new(b"data/ubuntu-16.04.6-desktop-amd64.iso.torrent".to_vec());
         let tracker = Tracker::new(torrent);
     }
 }

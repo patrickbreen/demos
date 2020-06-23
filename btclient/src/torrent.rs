@@ -16,7 +16,7 @@ use crate::bencoding::{Decoded, Decoder, Encoder, encode_decoded};
 pub struct Torrent {
     pub filename: Vec<u8>,
     pub meta_info: BTreeMap<Vec<u8>, Decoded>,
-    pub info_hash: Vec<u8>,
+    pub info_hash: String,
     pub name: Vec<u8>,
     pub length: usize,
 }
@@ -36,14 +36,13 @@ impl Torrent {
         // get info hash
         let mut hasher = Sha1::new();
         hasher.input(&encode_decoded(info));
-        let mut info_hash = [0;20];
-        hasher.result(&mut info_hash);
+        let info_hash = hasher.result_str();
 
         let name = meta_info.get(&b"info".to_vec()).unwrap().dict.as_ref().unwrap().get(&b"name".to_vec()).unwrap().bytes.as_ref().unwrap().clone();
         let length = meta_info.get(&b"info".to_vec()).unwrap().dict.as_ref().unwrap().get(&b"length".to_vec()).unwrap().int.unwrap() as usize;
 
         // return
-        Torrent {filename: filename, meta_info: meta_info, info_hash: info_hash.to_vec(), name: name, length: length}
+        Torrent {filename: filename, meta_info: meta_info, info_hash: info_hash.to_string(), name: name, length: length}
     }
 
     pub fn announce(&self) -> Vec<u8> {
@@ -83,7 +82,7 @@ impl Torrent {
 
 
 fn setup() -> Torrent {
-    Torrent::new(b"data/ubuntu-18.04.3-desktop-amd64.iso.torrent".to_vec())
+    Torrent::new(b"data/ubuntu-16.04.6-desktop-amd64.iso.torrent".to_vec())
 }
 
 mod tests {
@@ -99,7 +98,7 @@ mod tests {
     #[test]
     fn test_announce() {
         let t = setup();
-        assert_eq!(b"https://torrent.ubuntu.com/announce".to_vec(), t.announce());
+        assert_eq!(b"http://torrent.ubuntu.com:6969/announce".to_vec(), t.announce());
     }
 
     #[test]
@@ -111,25 +110,25 @@ mod tests {
     #[test]
     fn test_file() {
         let t = setup();
-        assert_eq!(b"data/ubuntu-18.04.3-desktop-amd64.iso.torrent".to_vec(), t.filename);
-        assert_eq!(2082816000, t.length);
+        assert_eq!(b"data/ubuntu-16.04.6-desktop-amd64.iso.torrent".to_vec(), t.filename);
+        assert_eq!(1664614400, t.length);
     }
 
     #[test]
     fn test_hash() {
         let t = setup();
-        assert_eq!(vec![101, 20, 94, 212, 215, 69, 207, 201, 63, 95, 254, 52, 146, 233, 205, 229, 75, 85, 125, 159], t.info_hash);
+        assert_eq!("ee55335f2acde309fa645fab11c04750d7e45fa1", t.info_hash);
     }
 
     #[test]
     fn test_total_size() {
         let t = setup();
-        assert_eq!(2082816000, t.total_size());
+        assert_eq!(1664614400, t.total_size());
     }
 
     #[test]
     fn test_pieces() {
         let t = setup();
-        assert_eq!(3973, t.pieces().len());
+        assert_eq!(3175, t.pieces().len());
     }
 }

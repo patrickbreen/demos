@@ -165,6 +165,7 @@ pub struct Decoder {
     index: usize,
 }
 
+#[derive(Debug)]
 pub struct Decoded {
     pub type_name: String,
     pub bytes: Option<Vec<u8>>,

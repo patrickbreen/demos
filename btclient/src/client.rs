@@ -3,8 +3,16 @@
 //
 // Define TorrentClient, Piece, Block, Piece Manager
 
+use std::fs::File;
+use std::path::Path;
+use std::collections::HashMap;
+use std::str;
+
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
+
+use crate::torrent::Torrent;
+
 
 
 
@@ -147,17 +155,82 @@ impl Piece {
 
 // TODO
 struct PieceManager {
+    torrent: Torrent,
+    peers: HashMap<Vec<u8>,(String, u16)>,  
+    pending_blocks: Vec<Block>,
+    missing_pieces: Vec<Piece>,
+    ongoing_pieces: Vec<Piece>,
+    have_pieces: Vec<Piece>,
+    total_pieces: usize,
+    file: File,
 }
 
 impl PieceManager {
 
 
+    // The PieceManager is responsible for keeping track of all the available
+    // pieces for the connected peers as well as the pieces we have available for
+    // other peers.
+    
+    // The strategy on which piece to request is made as simple as possible in
+    // this implementation.
 
-    fn new() -> PieceManager {
-        PieceManager {
+    const max_pending_time: u32 = 300*1000;
 
+    fn new(torrent: Torrent) -> PieceManager {
+        let file_str = str::from_utf8(&torrent.output_file()).unwrap().to_string();
+        let file_path = Path::new(&file_str);
+        let total_pieces = torrent.pieces().len();
+        let piece_manager = PieceManager {
+            torrent: torrent,
+            peers: HashMap::new(),
+            pending_blocks: Vec::new(),
+            missing_pieces: Vec::new(),
+            ongoing_pieces: Vec::new(),
+            have_pieces: Vec::new(),
+            total_pieces: total_pieces,
+            file: File::open(file_path).unwrap(),
+        };
+        piece_manager.initiate_pieces();
+        piece_manager
+    }
+
+    fn initiate_pieces(&self) {
+        // TODO
+    }
+
+
+    fn close(&self) {
+        // No implementation because file will auto-close when it goes out of scope
+    }
+
+    fn complete(&self) -> bool {
+        self.have_pieces.len() == self.total_pieces
+    }
+
+    fn bytes_downloaded(&self) -> usize {
+        self.have_pieces.len() * self.torrent.piece_length()
+    }
+
+    fn bytes_uploaded(&self) -> usize {
+        // TODO - no support for uploading
+        0
+    }
+
+    fn add_peer(&mut self, peer_id: Vec<u8>, bitfield: (String, u16)) {
+        self.peers.insert(peer_id, bitfield);
+    }
+
+    fn update_peer(&mut self, peer_id: Vec<u8>, bitfield: (String, u16)) {
+        if self.peers.contains_key(&peer_id) {
+            self.peers.insert(peer_id, bitfield);
         }
     }
+
+    fn remove_peer(&self) {
+        // TODO
+    }
+
 
 }
 

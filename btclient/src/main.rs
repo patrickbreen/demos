@@ -8,12 +8,15 @@ mod client;
 mod protocol;
 mod tracker;
 
+use crypto::sha1::Sha1;
+use crypto::digest::Digest;
+use bencoding::{Decoder, Encoder};
 
+use tracker::Tracker;
 use torrent::Torrent;
 use client::TorrentClient;
 
 
-use bencoding::{Decoder, Encoder};
 
 
 
@@ -22,4 +25,12 @@ use bencoding::{Decoder, Encoder};
 
 fn main() {
     println!("Hello, world!");
+
+    // start with getting a tracker:
+    let torrent = Torrent::new(b"data/ubuntu-16.04.6-desktop-amd64.iso.torrent".to_vec());
+    let tracker = Tracker::new(torrent);
+    let tracker_response = tracker.connect(0, 0, false);
+    let peers = tracker_response.peers();
+    println!("peers: {:?}", peers);
+
  }
