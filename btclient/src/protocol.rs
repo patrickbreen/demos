@@ -30,7 +30,7 @@ use std::net::TcpStream;
 const REQUEST_SIZE: usize = 16384;
 
 // TODO
-struct PeerConnection {
+pub struct PeerConnection {
     // my_state,
     // peer_state,
     // queue,
@@ -76,7 +76,7 @@ impl PeerConnection {
     fn cancel(&self) {
     }
 
-    fn stop(&self) {
+    pub fn stop(&self) {
     }
 
     fn request_piece(&self) {

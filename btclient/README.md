@@ -4,7 +4,7 @@
 
 
 
-# Piecreasonablees
+# References
 https://github.com/eliasson/pieces
 
 
@@ -18,5 +18,5 @@ https://github.com/eliasson/pieces
 
 
 
-Write module and unit tests to get it to pass
+Write module and unit tests to get it to pass with synchronous sockets
 Will use async/await as described in the rust book

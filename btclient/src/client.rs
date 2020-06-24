@@ -6,29 +6,74 @@
 use std::fs::File;
 use std::path::Path;
 use std::collections::HashMap;
+use std::collections::VecDeque;
 use std::str;
 
 use crypto::digest::Digest;
 use crypto::sha1::Sha1;
 
 use crate::torrent::Torrent;
+use crate::tracker::Tracker;
+use crate::protocol::PeerConnection;
 
-
+// TODO
+// PieceManager
+// TorrentClient
 
 
 pub struct TorrentClient {
+    tracker: Tracker,
+    available_peers: VecDeque<PeerConnection>,
+    peers: Vec<PeerConnection>,
+    piece_manager: PieceManager,
+    abort: bool,
 
 }
 
 impl TorrentClient {
+    const MAX_PEER_CONNECTIONS: usize = 40;
 
-
-    fn new() -> TorrentClient {
-        TorrentClient {}
+    fn new(torrent: Torrent) -> TorrentClient {
+        TorrentClient {
+            tracker: Tracker::new(torrent.clone()),
+            available_peers: VecDeque::new(),
+            peers: Vec::new(),
+            piece_manager: PieceManager::new(torrent.clone()),
+            abort: false,
+        }
     }
 
-    fn parse(&self) {
+    fn start(&self) {
+        // Start downloading the torrent held by this client.
+
+        // This results in connecting to the tracker to retrieve the list of
+        // peers to communicate with. Once the torrent is fully downloaded or
+        // if the download is aborted this method will complete.
+
+        // TODO
     }
+
+    fn empty_queue(&self) {
+        // TODO
+    }
+
+    fn stop(&mut self) {
+        self.abort = true;
+
+        for peer in &mut self.peers {
+            peer.stop();
+        }
+        self.piece_manager.close();
+    }
+
+    // fn on_block_retrieved(&self, peer_id, piece_index, block_offset, data) {
+        
+    // }
+
+
+
+
+    
 
 }
 

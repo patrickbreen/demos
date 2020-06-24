@@ -12,7 +12,7 @@ use crypto::digest::Digest;
 use crate::bencoding::{Decoded, Decoder, Encoder, encode_decoded};
 
 
-
+#[derive(Debug, Clone)]
 pub struct Torrent {
     pub filename: Vec<u8>,
     pub meta_info: BTreeMap<Vec<u8>, Decoded>,
